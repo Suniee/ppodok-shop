@@ -109,3 +109,51 @@
     font-family: var(--font-pretendard);
   }
 }
+
+/* ── 관리자 UI ID 툴팁 ──────────────────────────────────────────────────────
+   .admin-mode 클래스가 조상에 있을 때만 활성화된다.
+   서버에서 관리자 여부를 검증한 뒤 해당 클래스를 부여해야 한다.
+   ───────────────────────────────────────────────────────────────────────── */
+/* @layer base 안에 두면 @layer utilities(Tailwind)가 항상 이긴다.
+   fixed / absolute / sticky 등 position 유틸리티가 이 규칙을 덮어쓴다. */
+@layer base {
+  :where(.admin-mode [data-ui-id]) {
+    position: relative;
+  }
+}
+
+/* 말풍선 본체 */
+.admin-mode [data-ui-id]:hover::after {
+  content: attr(data-ui-id);
+  position: absolute;
+  bottom: calc(100% + 5px);
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #191F28;
+  color: #ffffff;
+  font-family: ui-monospace, "SF Mono", monospace;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 5px 9px;
+  border-radius: 5px;
+  white-space: nowrap;
+  z-index: 10000;
+  pointer-events: none;
+}
+
+/* 말풍선 꼬리 (▼ 삼각형) */
+.admin-mode [data-ui-id]:hover::before {
+  content: "";
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid #191F28;
+  z-index: 10000;
+  pointer-events: none;
+}

@@ -2,7 +2,7 @@ export default function Footer() {
   const links = ["회사소개", "이용약관", "개인정보처리방침", "고객센터", "공지사항"]
 
   return (
-    <footer className="bg-white mt-12" style={{ borderTop: "1px solid var(--toss-border)" }}>
+    <footer data-ui-id="footer-main" className="bg-white mt-12" style={{ borderTop: "1px solid var(--toss-border)" }}>
       <div className="max-w-5xl mx-auto px-5 py-10">
         {/* Logo */}
         <div className="flex items-center gap-1.5 mb-5">

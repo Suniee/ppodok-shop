@@ -17,6 +17,7 @@ export default function AdminSidebar() {
 
   return (
     <aside
+      data-ui-id="sidebar-admin-nav"
       className="w-56 flex-shrink-0 flex flex-col h-screen sticky top-0"
       style={{ backgroundColor: "var(--toss-text-primary)", color: "#fff" }}
     >
@@ -35,7 +36,7 @@ export default function AdminSidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5">
+      <nav data-ui-id="nav-admin-menu" className="flex-1 px-3 py-4 space-y-0.5">
         {navItems.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(href + "/")
           return (
@@ -75,6 +76,7 @@ export default function AdminSidebar() {
           </div>
         </div>
         <a
+          data-ui-id="btn-admin-logout"
           href="/"
           className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs transition-colors hover:bg-white/10"
           style={{ color: "rgba(255,255,255,0.4)" }}

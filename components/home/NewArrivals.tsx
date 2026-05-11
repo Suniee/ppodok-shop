@@ -1,9 +1,12 @@
 import ProductCard from "@/components/product/ProductCard"
-import { newArrivals } from "@/lib/data/products"
+import { type Product } from "@/lib/data/products"
 
-export default function NewArrivals() {
+// 서버 컴포넌트 - page.tsx에서 필터링된 신상품 목록을 받아 렌더
+export default function NewArrivals({ items }: { items: Product[] }) {
+  if (items.length === 0) return null
+
   return (
-    <section className="mt-5">
+    <section data-ui-id="section-home-new-arrivals" className="mt-5">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-base font-bold" style={{ color: "var(--toss-text-primary)" }}>
           신상품 <span className="font-normal text-sm" style={{ color: "var(--toss-text-secondary)" }}>New Arrivals</span>
@@ -13,7 +16,7 @@ export default function NewArrivals() {
         </a>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-        {newArrivals.map((p) => (
+        {items.map((p) => (
           <ProductCard key={p.id} product={p} />
         ))}
       </div>

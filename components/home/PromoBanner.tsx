@@ -5,10 +5,11 @@ import { ArrowRight } from "lucide-react"
 
 export default function PromoBanner() {
   return (
-    <section className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3">
+    <section data-ui-id="section-home-promo" className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3">
 
       {/* Primary — Toss Blue */}
       <motion.a
+        data-ui-id="banner-promo-detergent"
         href="/category/detergent"
         whileHover={{ scale: 1.015 }}
         whileTap={{ scale: 0.985 }}
@@ -46,6 +47,7 @@ export default function PromoBanner() {
       {/* Secondary — light */}
       <div className="grid grid-rows-2 gap-3">
         <motion.a
+          data-ui-id="banner-promo-join"
           href="/join"
           whileHover={{ scale: 1.015 }}
           whileTap={{ scale: 0.985 }}
@@ -63,6 +65,7 @@ export default function PromoBanner() {
         </motion.a>
 
         <motion.a
+          data-ui-id="banner-promo-free-shipping"
           href="/products?filter=free-shipping"
           whileHover={{ scale: 1.015 }}
           whileTap={{ scale: 0.985 }}

@@ -55,6 +55,7 @@ export default function HeroBanner() {
 
   return (
     <div
+      data-ui-id="banner-home-hero"
       className="rounded-3xl overflow-hidden relative"
       style={{ backgroundColor: s.bg, transition: "background-color 0.5s ease" }}
     >
@@ -89,6 +90,7 @@ export default function HeroBanner() {
 
             {/* CTA */}
             <button
+              data-ui-id="btn-banner-hero-cta"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold text-white transition-opacity hover:opacity-85"
               style={{ backgroundColor: s.textColor }}
             >
@@ -109,6 +111,7 @@ export default function HeroBanner() {
 
       {/* Arrows */}
       <button
+        data-ui-id="btn-banner-hero-prev"
         onClick={() => setCur((c) => (c - 1 + slides.length) % slides.length)}
         className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/70 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors shadow-sm"
         style={{ color: "var(--toss-text-secondary)" }}
@@ -116,6 +119,7 @@ export default function HeroBanner() {
         <ChevronLeft className="size-4" />
       </button>
       <button
+        data-ui-id="btn-banner-hero-next"
         onClick={() => setCur((c) => (c + 1) % slides.length)}
         className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/70 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors shadow-sm"
         style={{ color: "var(--toss-text-secondary)" }}

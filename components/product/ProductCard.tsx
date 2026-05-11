@@ -14,6 +14,7 @@ export default function ProductCard({ product }: { product: Product }) {
 
   return (
     <motion.div
+      data-ui-id={`card-product-${product.id}`}
       whileHover={{ y: -2 }}
       transition={{ type: "spring", stiffness: 400, damping: 30 }}
       className="bg-white rounded-2xl overflow-hidden cursor-pointer group"
@@ -39,6 +40,7 @@ export default function ProductCard({ product }: { product: Product }) {
 
         {/* Like */}
         <motion.button
+          data-ui-id="btn-product-like"
           whileTap={{ scale: 0.8 }}
           onClick={(e) => { e.preventDefault(); setLiked(!liked) }}
           className="absolute top-2.5 right-2.5 z-10 w-7 h-7 rounded-full bg-white flex items-center justify-center shadow-sm"
@@ -50,14 +52,22 @@ export default function ProductCard({ product }: { product: Product }) {
           />
         </motion.button>
 
-        {/* Emoji */}
-        <motion.span
-          className="text-5xl select-none"
-          whileHover={{ scale: 1.1 }}
-          transition={{ type: "spring", stiffness: 300, damping: 20 }}
-        >
-          {product.emoji}
-        </motion.span>
+        {/* 이미지가 있으면 실제 이미지, 없으면 이모지 */}
+        {product.images && product.images.length > 0 ? (
+          <img
+            src={product.images[0]}
+            alt={product.name}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <motion.span
+            className="text-5xl select-none"
+            whileHover={{ scale: 1.1 }}
+            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+          >
+            {product.emoji}
+          </motion.span>
+        )}
       </div>
 
       {/* Info */}
@@ -66,7 +76,7 @@ export default function ProductCard({ product }: { product: Product }) {
           className="text-[10px] font-medium mb-1 uppercase tracking-wide"
           style={{ color: "var(--toss-text-tertiary)" }}
         >
-          {product.category}
+          {product.categories.map((c) => c.name).join(" · ")}
         </p>
         <h3
           className="text-sm font-semibold line-clamp-2 leading-snug mb-3"
@@ -96,6 +106,7 @@ export default function ProductCard({ product }: { product: Product }) {
 
           {/* Add to cart */}
           <motion.button
+            data-ui-id="btn-product-add-cart"
             whileTap={{ scale: 0.9 }}
             className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white transition-opacity hover:opacity-85"
             style={{ backgroundColor: "var(--toss-blue)" }}

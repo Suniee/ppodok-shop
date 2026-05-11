@@ -1,9 +1,12 @@
 import ProductCard from "@/components/product/ProductCard"
-import { bestItems } from "@/lib/data/products"
+import { type Product } from "@/lib/data/products"
 
-export default function BestItems() {
+// 서버 컴포넌트 - page.tsx에서 필터링된 베스트 목록을 받아 렌더
+export default function BestItems({ items }: { items: Product[] }) {
+  if (items.length === 0) return null
+
   return (
-    <section className="mt-5">
+    <section data-ui-id="section-home-best-items" className="mt-5">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-base font-bold" style={{ color: "var(--toss-text-primary)" }}>
           베스트 아이템 <span className="font-normal text-sm" style={{ color: "var(--toss-text-secondary)" }}>Best Items</span>
@@ -13,7 +16,7 @@ export default function BestItems() {
         </a>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-        {bestItems.map((p, i) => (
+        {items.map((p, i) => (
           <div key={p.id} className="relative">
             <span
               className="absolute -top-2 -left-2 z-10 w-6 h-6 rounded-full text-[10px] font-black flex items-center justify-center shadow-sm text-white"
