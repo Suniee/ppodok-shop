@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition, useMemo } from "react"
-import { Search, TrendingUp, ShoppingCart, Package, Truck, CheckCircle2, XCircle, Clock } from "lucide-react"
+import { Search, TrendingUp, ShoppingCart, Package, Truck, CheckCircle2, XCircle, Clock, BadgeCheck } from "lucide-react"
 import { updateOrderStatusAction } from "./actions"
 import type { AdminOrder, OrderStatus } from "@/lib/supabase/orders"
 
@@ -10,6 +10,7 @@ const STATUS_META: Record<OrderStatus, { label: string; bg: string; color: strin
     confirmed: { label: "주문 확인", bg: "#EBF3FF", color: "#0064FF", icon: ShoppingCart },
     shipping:  { label: "배송 중",   bg: "#F3E8FF", color: "#9333EA", icon: Truck },
     delivered: { label: "배송 완료", bg: "#E8F8F5", color: "#00A878", icon: CheckCircle2 },
+    completed: { label: "주문 완료", bg: "#F0FDF4", color: "#16A34A", icon: BadgeCheck },
     cancelled: { label: "취소됨",   bg: "#FFF0F0", color: "#FF4E4E", icon: XCircle },
 }
 
@@ -21,7 +22,7 @@ const PAYMENT_LABEL: Record<string, string> = {
     tosspay:  "토스페이",
 }
 
-const STATUS_FLOW: OrderStatus[] = ["pending", "confirmed", "shipping", "delivered", "cancelled"]
+const STATUS_FLOW: OrderStatus[] = ["pending", "confirmed", "shipping", "delivered", "completed", "cancelled"]
 
 function formatDate(iso: string) {
     const d = new Date(iso)
@@ -87,6 +88,7 @@ export default function SalesClient({ orders: initial }: { orders: AdminOrder[] 
         { key: "confirmed", label: "주문 확인", count: stats.counts.confirmed },
         { key: "shipping",  label: "배송 중",  count: stats.counts.shipping },
         { key: "delivered", label: "배송 완료", count: stats.counts.delivered },
+        { key: "completed", label: "주문 완료", count: stats.counts.completed },
         { key: "cancelled", label: "취소",     count: stats.counts.cancelled },
     ]
 
@@ -99,7 +101,7 @@ export default function SalesClient({ orders: initial }: { orders: AdminOrder[] 
             </div>
 
             {/* 요약 카드 */}
-            <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 xl:grid-cols-5 gap-3">
                 <SummaryCard label="총 매출" value={`${(stats.total / 10000).toLocaleString()}만원`}
                     sub={`${stats.totalCount}건`} color="#0064FF" icon={TrendingUp} />
                 <SummaryCard label="결제 대기" value={`${stats.counts.pending}건`}
@@ -108,6 +110,8 @@ export default function SalesClient({ orders: initial }: { orders: AdminOrder[] 
                     color="#9333EA" icon={Truck} />
                 <SummaryCard label="배송 완료" value={`${stats.counts.delivered}건`}
                     color="#00A878" icon={CheckCircle2} />
+                <SummaryCard label="주문 완료" value={`${stats.counts.completed}건`}
+                    color="#16A34A" icon={BadgeCheck} />
             </div>
 
             {/* 필터 + 검색 */}

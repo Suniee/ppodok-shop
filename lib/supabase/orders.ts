@@ -1,12 +1,13 @@
 import { createAdminClient } from "./admin"
 
-export type OrderStatus = "pending" | "confirmed" | "shipping" | "delivered" | "cancelled"
+export type OrderStatus = "pending" | "confirmed" | "shipping" | "delivered" | "completed" | "cancelled"
 
 export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
     pending:   "결제 대기",
     confirmed: "주문 확인",
     shipping:  "배송 중",
     delivered: "배송 완료",
+    completed: "주문 완료",
     cancelled: "취소됨",
 }
 
