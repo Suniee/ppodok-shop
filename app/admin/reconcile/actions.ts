@@ -1,10 +1,39 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { fetchTossPayment, cancelTossPayment } from "@/lib/toss"
+import { fetchTossPayment, fetchTossTransactions, cancelTossPayment } from "@/lib/toss"
 import { savePayment } from "@/lib/supabase/payments"
+import { saveTossTransactions } from "@/lib/supabase/toss_transactions"
 import { updateOrderStatus } from "@/lib/supabase/orders"
 import { createAdminClient } from "@/lib/supabase/admin"
+
+// Toss 거래내역 API 조회 후 toss_transactions 테이블에 저장
+export async function receiveTossDataAction(
+    start: string,  // "YYYY-MM-DD"
+    end: string,
+): Promise<{ saved: number; errors: string[]; message: string }> {
+    try {
+        const startIso = `${start}T00:00:00`
+        const endIso   = `${end}T23:59:59`
+        const transactions = await fetchTossTransactions(startIso, endIso)
+
+        if (transactions.length === 0) {
+            return { saved: 0, errors: [], message: "조회된 거래내역이 없습니다." }
+        }
+
+        const result = await saveTossTransactions(transactions)
+        revalidatePath("/admin/reconcile")
+        return {
+            saved: result.saved,
+            errors: result.errors,
+            message: result.errors.length === 0
+                ? `${result.saved}건 저장 완료`
+                : `${result.saved}건 저장, ${result.errors.length}건 오류`,
+        }
+    } catch (e) {
+        return { saved: 0, errors: [], message: e instanceof Error ? e.message : "데이터 수신에 실패했습니다." }
+    }
+}
 
 // DB 미저장 건을 Toss 단건 조회 후 재저장
 export async function resavePaymentAction(paymentKey: string, orderId: string): Promise<{ ok: boolean; message: string }> {

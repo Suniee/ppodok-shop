@@ -4,11 +4,11 @@ import { useState, useMemo, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
     CheckCircle2, XCircle, AlertTriangle, Search,
-    TrendingUp, CreditCard, Scale, RotateCcw, Ban,
+    TrendingUp, CreditCard, Scale, RotateCcw, Ban, Download,
 } from "lucide-react"
 import type { TossTransaction } from "@/lib/toss"
 import type { AdminPayment } from "@/lib/supabase/payments"
-import { resavePaymentAction, cancelPaymentAction } from "./actions"
+import { resavePaymentAction, cancelPaymentAction, receiveTossDataAction } from "./actions"
 
 type MatchStatus = "matched" | "mismatch" | "toss_only" | "db_only"
 
@@ -96,6 +96,16 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
     const [tab,    setTab]    = useState<MatchStatus | "all">("all")
     const [search, setSearch] = useState("")
     const [isPending, startTransition] = useTransition()
+    const [isReceiving, startReceive] = useTransition()
+    const [receiveResult, setReceiveResult] = useState<{ saved: number; errors: string[]; message: string } | null>(null)
+
+    const handleReceive = () => {
+        startReceive(async () => {
+            const result = await receiveTossDataAction(start, end)
+            setReceiveResult(result)
+            if (result.saved > 0) router.refresh()
+        })
+    }
 
     // 취소 인라인 폼 상태: paymentKey → 입력 중인 사유
     const [cancelForms, setCancelForms] = useState<Record<string, string>>({})
@@ -235,8 +245,32 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
                         <Search className="size-3.5" />
                         조회
                     </button>
+                    <button
+                        onClick={handleReceive}
+                        disabled={isReceiving}
+                        className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-85 disabled:opacity-40"
+                        style={{ backgroundColor: "#E8F8F5", color: "#00A878", border: "1px solid #B2EFE1" }}
+                    >
+                        <Download className={`size-3.5 ${isReceiving ? "animate-bounce" : ""}`} />
+                        {isReceiving ? "수신 중…" : "데이터수신"}
+                    </button>
                 </div>
             </div>
+
+            {/* 데이터수신 결과 배너 */}
+            {receiveResult && (
+                <div
+                    className="px-4 py-3 rounded-xl text-xs flex items-center justify-between gap-4"
+                    style={{
+                        backgroundColor: receiveResult.errors.length > 0 ? "#FFF0F0" : "#E8F8F5",
+                        border: `1px solid ${receiveResult.errors.length > 0 ? "#FFCDD2" : "#B2EFE1"}`,
+                        color: receiveResult.errors.length > 0 ? "#FF4E4E" : "#00A878",
+                    }}
+                >
+                    <span>{receiveResult.message}{receiveResult.errors.length > 0 && ` (오류: ${receiveResult.errors.join(", ")})`}</span>
+                    <button onClick={() => setReceiveResult(null)} className="opacity-60 hover:opacity-100 text-base leading-none">×</button>
+                </div>
+            )}
 
             {/* 요약 카드 */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
