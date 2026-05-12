@@ -25,13 +25,18 @@ export default async function ReconcilePage({ searchParams }: Props) {
         fetchPaymentsByDateRange(startIso, `${range.end}T23:59:59+09:00`),
     ])
 
-    // 승인(DONE) 건만, paymentKey 기준 중복 제거 후 합산
+    // Toss: 승인(DONE) 건만, paymentKey 기준 중복 제거 후 합산
     const doneByKey = new Map<string, number>()
     tossTransactions
         .filter((t) => t.status === "DONE")
         .forEach((t) => { if (!doneByKey.has(t.paymentKey)) doneByKey.set(t.paymentKey, t.amount) })
     const tossApprovedTotal = Array.from(doneByKey.values()).reduce((s, a) => s + a, 0)
     const tossApprovedCount = doneByKey.size
+
+    // DB: DONE 상태 건만 합산
+    const dbDone = dbPayments.filter((p) => p.status === "DONE")
+    const dbApprovedTotal = dbDone.reduce((s, p) => s + p.amount, 0)
+    const dbApprovedCount = dbDone.length
 
     return (
         <ReconcileClient
@@ -41,6 +46,8 @@ export default async function ReconcilePage({ searchParams }: Props) {
             initialEnd={range.end}
             tossApprovedTotal={tossApprovedTotal}
             tossApprovedCount={tossApprovedCount}
+            dbApprovedTotal={dbApprovedTotal}
+            dbApprovedCount={dbApprovedCount}
         />
     )
 }

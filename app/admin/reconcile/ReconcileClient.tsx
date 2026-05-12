@@ -63,11 +63,13 @@ interface Props {
     dbPayments:        AdminPayment[]
     initialStart:      string
     initialEnd:        string
-    tossApprovedTotal: number  // 서버에서 Toss API 조회 후 승인(DONE) 건만 합산
+    tossApprovedTotal: number
     tossApprovedCount: number
+    dbApprovedTotal:   number
+    dbApprovedCount:   number
 }
 
-export default function ReconcileClient({ tossTransactions, dbPayments, initialStart, initialEnd, tossApprovedTotal, tossApprovedCount }: Props) {
+export default function ReconcileClient({ tossTransactions, dbPayments, initialStart, initialEnd, tossApprovedTotal, tossApprovedCount, dbApprovedTotal, dbApprovedCount }: Props) {
     const router = useRouter()
     const [start,  setStart]  = useState(initialStart)
     const [end,    setEnd]    = useState(initialEnd)
@@ -160,10 +162,7 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
         db_only:   rows.filter((r) => r.match === "db_only").length,
     }), [rows])
 
-    const dbTotal = dbPayments
-        .filter((p) => p.status === "DONE")
-        .reduce((s, p) => s + p.amount, 0)
-    const diff = tossApprovedTotal - dbTotal
+    const diff = tossApprovedTotal - dbApprovedTotal
 
     const handleSearch = () => {
         router.push(`/admin/reconcile?start=${start}&end=${end}`)
@@ -228,13 +227,13 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
                     color="#0064FF" icon={CreditCard}
                 />
                 <SummaryCard
-                    label="DB 저장 금액"
-                    value={`${(dbTotal / 10000).toLocaleString()}만원`}
-                    sub={`${dbPayments.filter((p) => p.status === "DONE").length}건`}
+                    label="DB 완료 금액"
+                    value={`${(dbApprovedTotal / 10000).toLocaleString()}만원`}
+                    sub={`${dbApprovedCount}건 (승인 기준)`}
                     color="#00A878" icon={TrendingUp}
                 />
                 <SummaryCard
-                    label="차액"
+                    label="차액 (Toss − DB)"
                     value={`${Math.abs(diff / 10000).toLocaleString()}만원`}
                     sub={diff === 0 ? "일치" : diff > 0 ? "Toss 초과" : "DB 초과"}
                     color={diff === 0 ? "#00A878" : "#FF4E4E"} icon={Scale}
