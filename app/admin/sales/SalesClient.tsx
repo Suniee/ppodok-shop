@@ -68,7 +68,11 @@ export default function SalesClient({ orders: initial }: { orders: AdminOrder[] 
 
     // 요약 통계
     const stats = useMemo(() => {
-        const total = orders.reduce((s, o) => s + o.totalPrice, 0)
+        // 결제대기·취소 제외, 주문확인 이후 상태만 매출 합산
+        const EXCLUDED: OrderStatus[] = ["pending", "cancelled"]
+        const total = orders
+            .filter((o) => !EXCLUDED.includes(o.status))
+            .reduce((s, o) => s + o.totalPrice, 0)
         const counts = Object.fromEntries(
             STATUS_FLOW.map((s) => [s, orders.filter((o) => o.status === s).length])
         ) as Record<OrderStatus, number>
