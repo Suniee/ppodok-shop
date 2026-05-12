@@ -73,11 +73,12 @@ export async function fetchTossPayment(paymentKey: string): Promise<TossPaymentD
 // ── 결제 승인 ──────────────────────────────────────────────────
 
 // 서버 전용: 토스페이먼츠 결제 승인 API 호출 (secret key 사용)
+// 승인 성공 시 토스 응답 원본을 반환 (payments 테이블 저장용)
 export async function confirmTossPayment(
     paymentKey: string,
     orderId: string,
     amount: number
-): Promise<void> {
+): Promise<Record<string, unknown>> {
     const res = await fetch("https://api.tosspayments.com/v1/payments/confirm", {
         method: "POST",
         headers: {
@@ -88,8 +89,11 @@ export async function confirmTossPayment(
         cache: "no-store",
     })
 
+    const body = await res.json().catch(() => ({}))
+
     if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error(body.message ?? "결제 승인에 실패했습니다.")
+        throw new Error((body as { message?: string }).message ?? "결제 승인에 실패했습니다.")
     }
+
+    return body as Record<string, unknown>
 }

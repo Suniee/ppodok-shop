@@ -2,6 +2,7 @@ import { notFound } from "next/navigation"
 import { CheckCircle2, MapPin, CreditCard, Package } from "lucide-react"
 import { fetchOrderById, updateOrderStatus, ORDER_STATUS_LABEL } from "@/lib/supabase/orders"
 import { confirmTossPayment } from "@/lib/toss"
+import { savePayment } from "@/lib/supabase/payments"
 import { CartClearer } from "./CartClearer"
 
 const PAYMENT_LABEL: Record<string, string> = {
@@ -26,8 +27,21 @@ export default async function OrderCompletePage({ params, searchParams }: Props)
         const order = await fetchOrderById(orderId)
         if (order?.status === "pending") {
             try {
-                await confirmTossPayment(paymentKey, orderId, parseInt(amount, 10))
-                await updateOrderStatus(orderId, "confirmed")
+                const tossResponse = await confirmTossPayment(paymentKey, orderId, parseInt(amount, 10))
+                await Promise.all([
+                    updateOrderStatus(orderId, "confirmed"),
+                    savePayment({
+                        orderId,
+                        paymentKey,
+                        orderName:   (tossResponse.orderName as string) ?? "",
+                        method:      (tossResponse.method as string) ?? "",
+                        amount:      (tossResponse.totalAmount as number) ?? parseInt(amount, 10),
+                        status:      (tossResponse.status as string) ?? "DONE",
+                        requestedAt: (tossResponse.requestedAt as string) ?? null,
+                        approvedAt:  (tossResponse.approvedAt as string) ?? null,
+                        rawResponse: tossResponse,
+                    }),
+                ])
             } catch {
                 // 승인 실패 → 실패 페이지로 이동 처리는 클라이언트가 담당
                 // 서버에서는 최선을 다해 렌더링 시도
