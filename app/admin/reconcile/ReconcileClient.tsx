@@ -4,11 +4,11 @@ import { useState, useMemo, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
     CheckCircle2, XCircle, AlertTriangle, Search,
-    TrendingUp, CreditCard, Scale, RotateCcw, Ban,
+    TrendingUp, CreditCard, Scale, RotateCcw, Ban, RefreshCw,
 } from "lucide-react"
 import type { TossTransaction } from "@/lib/toss"
 import type { AdminPayment } from "@/lib/supabase/payments"
-import { resavePaymentAction, cancelPaymentAction } from "./actions"
+import { resavePaymentAction, cancelPaymentAction, syncPaymentStatusesAction } from "./actions"
 
 type MatchStatus = "matched" | "mismatch" | "toss_only" | "db_only"
 
@@ -101,6 +101,19 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
     const [cancelForms, setCancelForms] = useState<Record<string, string>>({})
     // 결과 토스트: paymentKey → { ok, message }
     const [results, setResults] = useState<Record<string, { ok: boolean; message: string }>>({})
+    // 상태 일괄 갱신 결과
+    const [syncResult, setSyncResult] = useState<{ updated: number; skipped: number; errors: string[] } | null>(null)
+    const [isSyncing, startSync] = useTransition()
+
+    const handleSyncStatuses = () => {
+        // Toss 조회 결과 전체를 paymentKey 기준으로 DB 상태 갱신
+        const updates = tossTransactions.map((t) => ({ paymentKey: t.paymentKey, status: t.status }))
+        startSync(async () => {
+            const result = await syncPaymentStatusesAction(updates)
+            setSyncResult(result)
+            if (result.updated > 0) router.refresh()
+        })
+    }
 
     const openCancelForm = (key: string) =>
         setCancelForms((prev) => ({ ...prev, [key]: prev[key] ?? "" }))
@@ -235,8 +248,39 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
                         <Search className="size-3.5" />
                         조회
                     </button>
+                    <button
+                        onClick={handleSyncStatuses}
+                        disabled={isSyncing || tossTransactions.length === 0}
+                        className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-85 disabled:opacity-40"
+                        style={{ backgroundColor: "#F3E8FF", color: "#9333EA", border: "1px solid #E9D5FF" }}
+                        title="Toss 조회 결과의 상태를 DB payments 테이블에 반영합니다"
+                    >
+                        <RefreshCw className={`size-3.5 ${isSyncing ? "animate-spin" : ""}`} />
+                        {isSyncing ? "갱신 중…" : "DB 상태 갱신"}
+                    </button>
                 </div>
             </div>
+
+            {/* 상태 갱신 결과 배너 */}
+            {syncResult && (
+                <div
+                    className="px-4 py-3 rounded-xl text-xs flex items-center justify-between gap-4"
+                    style={{
+                        backgroundColor: syncResult.errors.length > 0 ? "#FFF0F0" : "#F3E8FF",
+                        border: `1px solid ${syncResult.errors.length > 0 ? "#FFCDD2" : "#E9D5FF"}`,
+                        color: syncResult.errors.length > 0 ? "#FF4E4E" : "#9333EA",
+                    }}
+                >
+                    <span>
+                        {syncResult.updated > 0
+                            ? `✅ ${syncResult.updated}건 상태 갱신 완료`
+                            : "갱신할 건이 없습니다 (DB에 없는 paymentKey)."}
+                        {syncResult.skipped > 0 && ` · ${syncResult.skipped}건 DB 미존재(건너뜀)`}
+                        {syncResult.errors.length > 0 && ` · 오류: ${syncResult.errors.join(", ")}`}
+                    </span>
+                    <button onClick={() => setSyncResult(null)} className="opacity-60 hover:opacity-100 text-base leading-none">×</button>
+                </div>
+            )}
 
             {/* 요약 카드 */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

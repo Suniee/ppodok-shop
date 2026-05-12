@@ -31,6 +31,36 @@ export async function resavePaymentAction(paymentKey: string, orderId: string): 
     }
 }
 
+// Toss 조회 결과로 payments 테이블 상태 일괄 갱신 (paymentKey 기준)
+export async function syncPaymentStatusesAction(
+    updates: { paymentKey: string; status: string }[]
+): Promise<{ updated: number; skipped: number; errors: string[] }> {
+    const admin = createAdminClient()
+    let updated = 0
+    let skipped = 0
+    const errors: string[] = []
+
+    for (const { paymentKey, status } of updates) {
+        try {
+            const { data, error } = await admin
+                .from("payments")
+                .update({ status })
+                .eq("payment_key", paymentKey)
+                .select("id")
+
+            if (error) throw error
+            if (data && data.length > 0) updated++
+            else skipped++ // payments 테이블에 해당 paymentKey 없음
+        } catch {
+            errors.push(paymentKey.slice(0, 12))
+        }
+    }
+
+    revalidatePath("/admin/reconcile")
+    revalidatePath("/admin/sales/payments")
+    return { updated, skipped, errors }
+}
+
 // 토스 결제 취소 + DB 상태 업데이트 + 주문 취소
 export async function cancelPaymentAction(
     paymentKey: string,
