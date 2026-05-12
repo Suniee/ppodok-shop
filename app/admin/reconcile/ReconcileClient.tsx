@@ -24,6 +24,26 @@ type ReconcileRow = {
     match:       MatchStatus
 }
 
+const PAYMENT_STATUS_META: Record<string, { label: string; bg: string; color: string }> = {
+    DONE:                { label: "완료",     bg: "#E8F8F5", color: "#00A878" },
+    CANCELED:            { label: "취소",     bg: "#FFF0F0", color: "#FF4E4E" },
+    PARTIAL_CANCELED:    { label: "부분 취소", bg: "#FFF0F0", color: "#FF4E4E" },
+    WAITING_FOR_DEPOSIT: { label: "입금 대기", bg: "#FFF8E1", color: "#FFB800" },
+    IN_PROGRESS:         { label: "처리 중",  bg: "#EBF3FF", color: "#0064FF" },
+}
+
+function StatusBadge({ status }: { status: string | null }) {
+    if (!status) return <span className="text-[11px]" style={{ color: "var(--toss-text-tertiary)" }}>-</span>
+    const meta = PAYMENT_STATUS_META[status]
+    if (!meta) return <span className="text-[11px]" style={{ color: "var(--toss-text-tertiary)" }}>{status}</span>
+    return (
+        <span className="inline-flex text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap"
+            style={{ backgroundColor: meta.bg, color: meta.color }}>
+            {meta.label}
+        </span>
+    )
+}
+
 const MATCH_META: Record<MatchStatus, { label: string; bg: string; color: string; icon: React.ElementType }> = {
     matched:   { label: "일치",     bg: "#E8F8F5", color: "#00A878", icon: CheckCircle2 },
     mismatch:  { label: "금액 불일치", bg: "#FFF8E1", color: "#FFB800", icon: AlertTriangle },
@@ -307,7 +327,7 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
                         <table className="w-full">
                             <thead>
                                 <tr style={{ borderTop: "1px solid var(--toss-border)", borderBottom: "1px solid var(--toss-border)" }}>
-                                    {["상태", "승인 시각", "주문번호", "주문명", "Toss 금액", "DB 금액", "Toss 상태", "paymentKey", "액션"].map((h) => (
+                                    {["상태", "승인 시각", "주문번호", "주문명", "Toss 금액", "DB 금액", "Toss 상태", "DB 상태", "paymentKey", "액션"].map((h) => (
                                         <th key={h}
                                             className="px-4 py-3 text-left text-[11px] font-semibold whitespace-nowrap"
                                             style={{ color: "var(--toss-text-tertiary)", backgroundColor: "var(--toss-page-bg)" }}>
@@ -375,9 +395,12 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
 
                                             {/* Toss 상태 */}
                                             <td className="px-4 py-3">
-                                                <span className="text-[11px]" style={{ color: "var(--toss-text-tertiary)" }}>
-                                                    {r.tossStatus ?? "-"}
-                                                </span>
+                                                <StatusBadge status={r.tossStatus} />
+                                            </td>
+
+                                            {/* DB 상태 */}
+                                            <td className="px-4 py-3">
+                                                <StatusBadge status={r.dbStatus} />
                                             </td>
 
                                             {/* paymentKey */}
