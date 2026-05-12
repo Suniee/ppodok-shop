@@ -190,7 +190,7 @@ export default function OrdersClient({ orders }: { orders: Order[] }) {
 
     const tabs: { key: Tab; label: string; count: number }[] = [
         { key: "all",       label: "전체",    count: visible.length },
-        { key: "confirmed", label: "주문 중",  count: visible.filter((o) => o.status === "confirmed").length },
+        { key: "confirmed", label: "주문완료", count: visible.filter((o) => o.status === "confirmed").length },
         { key: "shipping",  label: "배송 중",  count: visible.filter((o) => o.status === "shipping").length },
         { key: "delivered", label: "배송 완료", count: visible.filter((o) => DELIVERED_STATUSES.includes(o.status)).length },
         { key: "cancelled", label: "취소",     count: visible.filter((o) => o.status === "cancelled").length },
