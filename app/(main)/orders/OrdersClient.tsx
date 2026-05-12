@@ -198,13 +198,13 @@ export default function OrdersClient({ orders }: { orders: Order[] }) {
 
     return (
         <div data-ui-id="page-orders">
-            {/* 탭 */}
-            <div className="flex gap-1 mb-6">
+            {/* 탭 — 넘칠 경우 가로 스크롤 (스크롤바 숨김) */}
+            <div className="flex gap-1 mb-6 overflow-x-auto scrollbar-hide pb-0.5">
                 {tabs.map((t) => (
                     <button
                         key={t.key}
                         onClick={() => setTab(t.key)}
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors"
+                        className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors"
                         style={{
                             backgroundColor: tab === t.key ? "var(--toss-blue)" : "var(--toss-page-bg)",
                             color: tab === t.key ? "#fff" : "var(--toss-text-secondary)",
