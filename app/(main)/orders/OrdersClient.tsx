@@ -23,9 +23,12 @@ const PAYMENT_LABEL: Record<string, string> = {
     tosspay:  "토스페이",
 }
 
-type Tab = "all" | "active" | "cancelled"
+type Tab = "all" | "confirmed" | "shipping" | "delivered" | "cancelled"
 
-const ACTIVE_STATUSES: OrderStatus[] = ["confirmed", "shipping", "delivered", "purchase_confirmed", "review_written"]
+// 결제대기(pending)는 사용자에게 노출하지 않음
+const VISIBLE_STATUSES: OrderStatus[] = ["confirmed", "shipping", "delivered", "purchase_confirmed", "review_written", "cancelled"]
+// 배송완료 탭: 배송 완료 이후 모든 단계 포함
+const DELIVERED_STATUSES: OrderStatus[] = ["delivered", "purchase_confirmed", "review_written"]
 
 function formatDate(iso: string) {
     return new Date(iso).toLocaleDateString("ko-KR", {
@@ -175,16 +178,22 @@ function OrderCard({ order }: { order: Order }) {
 export default function OrdersClient({ orders }: { orders: Order[] }) {
     const [tab, setTab] = useState<Tab>("all")
 
-    const filtered = orders.filter((o) => {
-        if (tab === "active")    return ACTIVE_STATUSES.includes(o.status)
+    const visible = orders.filter((o) => VISIBLE_STATUSES.includes(o.status))
+
+    const filtered = visible.filter((o) => {
+        if (tab === "confirmed") return o.status === "confirmed"
+        if (tab === "shipping")  return o.status === "shipping"
+        if (tab === "delivered") return DELIVERED_STATUSES.includes(o.status)
         if (tab === "cancelled") return o.status === "cancelled"
-        return true
+        return true // "all"
     })
 
     const tabs: { key: Tab; label: string; count: number }[] = [
-        { key: "all",       label: "전체",    count: orders.length },
-        { key: "active",    label: "주문 중",  count: orders.filter((o) => ACTIVE_STATUSES.includes(o.status)).length },
-        { key: "cancelled", label: "취소",     count: orders.filter((o) => o.status === "cancelled").length },
+        { key: "all",       label: "전체",    count: visible.length },
+        { key: "confirmed", label: "주문 중",  count: visible.filter((o) => o.status === "confirmed").length },
+        { key: "shipping",  label: "배송 중",  count: visible.filter((o) => o.status === "shipping").length },
+        { key: "delivered", label: "배송 완료", count: visible.filter((o) => DELIVERED_STATUSES.includes(o.status)).length },
+        { key: "cancelled", label: "취소",     count: visible.filter((o) => o.status === "cancelled").length },
     ]
 
     return (

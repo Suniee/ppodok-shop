@@ -58,7 +58,7 @@ export default async function OrdersPage() {
                     주문/취소 내역
                 </h1>
                 <p className="text-sm mt-1" style={{ color: "var(--toss-text-secondary)" }}>
-                    총 {orders.length}건의 주문
+                    총 {orders.filter((o) => o.status !== "pending").length}건의 주문
                 </p>
             </div>
 
