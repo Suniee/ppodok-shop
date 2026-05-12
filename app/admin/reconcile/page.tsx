@@ -25,13 +25,18 @@ export default async function ReconcilePage({ searchParams }: Props) {
         fetchPaymentsByDateRange(startIso, `${range.end}T23:59:59+09:00`),
     ])
 
-    // Toss: 승인(DONE) 건만, paymentKey 기준 중복 제거 후 합산
-    const doneByKey = new Map<string, number>()
-    tossTransactions
-        .filter((t) => t.status === "DONE")
-        .forEach((t) => { if (!doneByKey.has(t.paymentKey)) doneByKey.set(t.paymentKey, t.amount) })
-    const tossApprovedTotal = Array.from(doneByKey.values()).reduce((s, a) => s + a, 0)
-    const tossApprovedCount = doneByKey.size
+    // Toss: paymentKey별 가장 최근 트랜잭션 상태가 DONE인 건만 합산
+    // (승인 후 취소된 건은 CANCELED 레코드가 더 늦으므로 제외됨)
+    const latestByKey = new Map<string, { amount: number; status: string; at: string }>()
+    for (const t of tossTransactions) {
+        const cur = latestByKey.get(t.paymentKey)
+        if (!cur || t.transactionAt > cur.at) {
+            latestByKey.set(t.paymentKey, { amount: t.amount, status: t.status, at: t.transactionAt })
+        }
+    }
+    const doneEntries = Array.from(latestByKey.values()).filter((v) => v.status === "DONE")
+    const tossApprovedTotal = doneEntries.reduce((s, v) => s + v.amount, 0)
+    const tossApprovedCount = doneEntries.length
 
     // DB: DONE 상태 건만 합산
     const dbDone = dbPayments.filter((p) => p.status === "DONE")
