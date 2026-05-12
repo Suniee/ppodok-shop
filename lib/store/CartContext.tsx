@@ -121,8 +121,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     )
 }
 
+const NO_OP = () => {}
+const FALLBACK_CART: CartContextValue = {
+    items: [], isOpen: false, totalCount: 0, totalPrice: 0,
+    addItem: NO_OP, removeItem: NO_OP, updateQuantity: NO_OP,
+    clearCart: NO_OP, openCart: NO_OP, closeCart: NO_OP,
+}
+
 export function useCart() {
     const ctx = useContext(CartContext)
-    if (!ctx) throw new Error("useCart must be used inside CartProvider")
-    return ctx
+    return ctx ?? FALLBACK_CART
 }

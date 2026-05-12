@@ -1,7 +1,44 @@
 import { redirect } from "next/navigation"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
-import { fetchMyOrders } from "@/lib/supabase/orders"
+import type { Order, OrderStatus } from "@/lib/supabase/orders"
 import OrdersClient from "./OrdersClient"
+
+// 서버 전용 — next/headers 의존성이 있어 orders.ts에 두지 않음
+async function fetchMyOrders(): Promise<Order[]> {
+    const supabase = await createSupabaseServerClient()
+    const { data, error } = await supabase
+        .from("orders")
+        .select("*, order_items(*)")
+        .order("created_at", { ascending: false })
+
+    if (error || !data) return []
+
+    return data.map((row: Record<string, unknown>) => ({
+        id:            row.id as string,
+        userId:        row.user_id as string | null,
+        status:        row.status as OrderStatus,
+        recipientName: row.recipient_name as string,
+        phone:         row.phone as string,
+        postalCode:    row.postal_code as string,
+        address:       row.address as string,
+        addressDetail: row.address_detail as string | null,
+        memo:          row.memo as string | null,
+        itemsTotal:    row.items_total as number,
+        shippingFee:   row.shipping_fee as number,
+        totalPrice:    row.total_price as number,
+        paymentMethod: row.payment_method as string,
+        createdAt:     row.created_at as string,
+        items: ((row.order_items as Record<string, unknown>[]) ?? []).map((i) => ({
+            id:          i.id as string,
+            productId:   i.product_id as string,
+            productName: i.product_name as string,
+            price:       i.price as number,
+            quantity:    i.quantity as number,
+            emoji:       i.emoji as string | null,
+            imageUrl:    i.image_url as string | null,
+        })),
+    }))
+}
 
 export default async function OrdersPage() {
     const supabase = await createSupabaseServerClient()

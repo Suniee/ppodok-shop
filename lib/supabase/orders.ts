@@ -1,5 +1,4 @@
 import { createAdminClient } from "./admin"
-import { createSupabaseServerClient } from "./server"
 
 export type OrderStatus = "pending" | "confirmed" | "shipping" | "delivered" | "purchase_confirmed" | "review_written" | "cancelled"
 
@@ -52,43 +51,6 @@ export type AdminOrder = {
     totalPrice: number
     paymentMethod: string
     createdAt: string
-}
-
-// 로그인 사용자 본인 주문 목록 조회 (RLS 적용 — user_id 일치 주문만 반환)
-export async function fetchMyOrders(): Promise<Order[]> {
-    const supabase = await createSupabaseServerClient()
-    const { data, error } = await supabase
-        .from("orders")
-        .select("*, order_items(*)")
-        .order("created_at", { ascending: false })
-
-    if (error || !data) return []
-
-    return data.map((row: Record<string, unknown>) => ({
-        id:            row.id as string,
-        userId:        row.user_id as string | null,
-        status:        row.status as OrderStatus,
-        recipientName: row.recipient_name as string,
-        phone:         row.phone as string,
-        postalCode:    row.postal_code as string,
-        address:       row.address as string,
-        addressDetail: row.address_detail as string | null,
-        memo:          row.memo as string | null,
-        itemsTotal:    row.items_total as number,
-        shippingFee:   row.shipping_fee as number,
-        totalPrice:    row.total_price as number,
-        paymentMethod: row.payment_method as string,
-        createdAt:     row.created_at as string,
-        items: ((row.order_items as Record<string, unknown>[]) ?? []).map((i) => ({
-            id:          i.id as string,
-            productId:   i.product_id as string,
-            productName: i.product_name as string,
-            price:       i.price as number,
-            quantity:    i.quantity as number,
-            emoji:       i.emoji as string | null,
-            imageUrl:    i.image_url as string | null,
-        })),
-    }))
 }
 
 export async function fetchAllOrdersForAdmin(): Promise<AdminOrder[]> {
