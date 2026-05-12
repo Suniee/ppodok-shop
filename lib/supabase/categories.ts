@@ -54,6 +54,17 @@ export async function deleteCategory(id: number): Promise<void> {
   if (error) throw error
 }
 
+export async function fetchCategoryBySlug(slug: string): Promise<Category | null> {
+  const { data, error } = await supabase
+    .from("categories")
+    .select("*")
+    .eq("slug", slug)
+    .eq("is_active", true)
+    .single()
+  if (error) return null
+  return toCategory(data)
+}
+
 export async function updateCategoryOrders(categories: Category[]): Promise<void> {
   await Promise.all(
     categories.map((c) =>

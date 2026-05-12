@@ -44,6 +44,17 @@ export async function fetchProducts(): Promise<Product[]> {
   return (data as DbRow[]).map(toProduct)
 }
 
+export async function fetchProductsByCategory(categoryId: number): Promise<Product[]> {
+  const { data, error } = await supabase
+    .from("products")
+    .select(`*, product_categories!inner(categories(*))`)
+    .eq("product_categories.category_id", categoryId)
+    .eq("is_visible", true)
+    .order("created_at", { ascending: false })
+  if (error) throw error
+  return (data as DbRow[]).map(toProduct)
+}
+
 export async function upsertProduct(product: Product): Promise<void> {
   const { error: pe } = await supabase.from("products").upsert({
     id: product.id,

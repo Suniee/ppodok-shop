@@ -27,7 +27,7 @@ export default function CategoryGrid({ categories }: { categories: Category[] })
             <motion.a
               key={cat.id}
               data-ui-id={`item-category-${cat.slug}`}
-              href={`/category/${cat.slug}`}
+              href={`/products?category=${cat.slug}`}
               whileHover={{ scale: 1.06 }}
               whileTap={{ scale: 0.95 }}
               transition={{ type: "spring", stiffness: 500, damping: 30 }}
