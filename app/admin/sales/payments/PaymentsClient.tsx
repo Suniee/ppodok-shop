@@ -1,10 +1,15 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import {
     CreditCard, CheckCircle2, XCircle, Clock,
     TrendingUp, Search, ExternalLink,
 } from "lucide-react"
+
+function todayYmd() {
+    const kst = new Date(Date.now() + 9 * 60 * 60 * 1000)
+    return kst.toISOString().slice(0, 10)
+}
 import type { AdminPayment } from "@/lib/supabase/payments"
 
 const STATUS_META: Record<string, { label: string; bg: string; color: string; icon: React.ElementType }> = {
@@ -47,30 +52,65 @@ function SummaryCard({
 }
 
 export default function PaymentsClient({ payments }: { payments: AdminPayment[] }) {
+    const today = todayYmd()
+    const [start,  setStart]  = useState(today)
+    const [end,    setEnd]    = useState(today)
     const [search, setSearch] = useState("")
 
-    const filtered = payments.filter((p) => {
+    // 날짜 범위 + 검색어 필터 (approvedAt 기준, 없으면 createdAt)
+    const filtered = useMemo(() => {
+        const startMs = new Date(start + "T00:00:00+09:00").getTime()
+        const endMs   = new Date(end   + "T23:59:59+09:00").getTime()
         const q = search.trim().toLowerCase()
-        return !q
-            || p.orderId.toLowerCase().includes(q)
-            || p.orderName.toLowerCase().includes(q)
-            || p.paymentKey.toLowerCase().includes(q)
-    })
+        return payments.filter((p) => {
+            const dateStr = p.approvedAt ?? p.createdAt
+            const ms = new Date(dateStr).getTime()
+            if (ms < startMs || ms > endMs) return false
+            return !q
+                || p.orderId.toLowerCase().includes(q)
+                || p.orderName.toLowerCase().includes(q)
+                || p.paymentKey.toLowerCase().includes(q)
+        })
+    }, [payments, start, end, search])
 
-    const doneList      = payments.filter((p) => p.status === "DONE")
-    const cancelledList = payments.filter((p) => p.status.includes("CANCELED"))
+    const doneList      = filtered.filter((p) => p.status === "DONE")
+    const cancelledList = filtered.filter((p) => p.status.includes("CANCELED"))
     const totalAmount   = doneList.reduce((s, p) => s + p.amount, 0)
 
     return (
         <div className="p-7 space-y-6">
             {/* 헤더 */}
-            <div>
-                <h1 className="text-xl font-black" style={{ color: "var(--toss-text-primary)", letterSpacing: "-0.03em" }}>
-                    결제 내역
-                </h1>
-                <p className="text-sm mt-0.5" style={{ color: "var(--toss-text-secondary)" }}>
-                    총 {payments.length}건
-                </p>
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                    <h1 className="text-xl font-black" style={{ color: "var(--toss-text-primary)", letterSpacing: "-0.03em" }}>
+                        결제 내역
+                    </h1>
+                    <p className="text-sm mt-0.5" style={{ color: "var(--toss-text-secondary)" }}>
+                        {filtered.length}건 표시 중 (전체 {payments.length}건)
+                    </p>
+                </div>
+
+                {/* 날짜 범위 필터 */}
+                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white"
+                    style={{ border: "1px solid var(--toss-border)" }}>
+                    <input
+                        type="date"
+                        value={start}
+                        max={end}
+                        onChange={(e) => setStart(e.target.value)}
+                        className="text-sm outline-none bg-transparent"
+                        style={{ color: "var(--toss-text-primary)" }}
+                    />
+                    <span className="text-xs" style={{ color: "var(--toss-text-tertiary)" }}>~</span>
+                    <input
+                        type="date"
+                        value={end}
+                        min={start}
+                        onChange={(e) => setEnd(e.target.value)}
+                        className="text-sm outline-none bg-transparent"
+                        style={{ color: "var(--toss-text-primary)" }}
+                    />
+                </div>
             </div>
 
             {/* 요약 카드 */}
