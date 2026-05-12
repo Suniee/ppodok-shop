@@ -70,6 +70,16 @@ export async function fetchTossPayment(paymentKey: string): Promise<TossPaymentD
     return res.json()
 }
 
+// 주문 ID로 결제 정보 조회 (paymentKey를 모를 때 사용)
+export async function fetchTossPaymentByOrderId(orderId: string): Promise<TossPaymentDetail | null> {
+    const res = await fetch(
+        `https://api.tosspayments.com/v1/payments/orders/${orderId}`,
+        { headers: { Authorization: getAuthHeader() }, cache: "no-store" }
+    )
+    if (!res.ok) return null
+    return res.json()
+}
+
 // ── 결제 취소 ──────────────────────────────────────────────────
 
 // 서버 전용: 토스페이먼츠 결제 취소 API 호출

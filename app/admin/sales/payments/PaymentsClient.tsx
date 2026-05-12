@@ -1,10 +1,12 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import {
     CreditCard, CheckCircle2, XCircle, Clock,
-    TrendingUp, Search, ExternalLink,
+    TrendingUp, Search, ExternalLink, RefreshCw,
 } from "lucide-react"
+import { syncMissingPaymentsAction } from "./actions"
 
 function todayYmd() {
     const kst = new Date(Date.now() + 9 * 60 * 60 * 1000)
@@ -52,10 +54,21 @@ function SummaryCard({
 }
 
 export default function PaymentsClient({ payments }: { payments: AdminPayment[] }) {
+    const router = useRouter()
     const today = todayYmd()
     const [start,  setStart]  = useState(today)
     const [end,    setEnd]    = useState(today)
     const [search, setSearch] = useState("")
+    const [isSyncing, startSync] = useTransition()
+    const [syncResult, setSyncResult] = useState<{ synced: number; skipped: number; errors: string[] } | null>(null)
+
+    const handleSync = () => {
+        startSync(async () => {
+            const result = await syncMissingPaymentsAction()
+            setSyncResult(result)
+            if (result.synced > 0) router.refresh()
+        })
+    }
 
     // 날짜 범위 + 검색어 필터 (approvedAt 기준, 없으면 createdAt)
     const filtered = useMemo(() => {
@@ -90,28 +103,67 @@ export default function PaymentsClient({ payments }: { payments: AdminPayment[] 
                     </p>
                 </div>
 
-                {/* 날짜 범위 필터 */}
-                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white"
-                    style={{ border: "1px solid var(--toss-border)" }}>
-                    <input
-                        type="date"
-                        value={start}
-                        max={end}
-                        onChange={(e) => setStart(e.target.value)}
-                        className="text-sm outline-none bg-transparent"
-                        style={{ color: "var(--toss-text-primary)" }}
-                    />
-                    <span className="text-xs" style={{ color: "var(--toss-text-tertiary)" }}>~</span>
-                    <input
-                        type="date"
-                        value={end}
-                        min={start}
-                        onChange={(e) => setEnd(e.target.value)}
-                        className="text-sm outline-none bg-transparent"
-                        style={{ color: "var(--toss-text-primary)" }}
-                    />
+                <div className="flex items-center gap-2 flex-wrap">
+                    {/* 날짜 범위 필터 */}
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white"
+                        style={{ border: "1px solid var(--toss-border)" }}>
+                        <input
+                            type="date"
+                            value={start}
+                            max={end}
+                            onChange={(e) => setStart(e.target.value)}
+                            className="text-sm outline-none bg-transparent"
+                            style={{ color: "var(--toss-text-primary)" }}
+                        />
+                        <span className="text-xs" style={{ color: "var(--toss-text-tertiary)" }}>~</span>
+                        <input
+                            type="date"
+                            value={end}
+                            min={start}
+                            onChange={(e) => setEnd(e.target.value)}
+                            className="text-sm outline-none bg-transparent"
+                            style={{ color: "var(--toss-text-primary)" }}
+                        />
+                    </div>
+
+                    {/* 누락 결제 동기화 버튼 */}
+                    <button
+                        onClick={handleSync}
+                        disabled={isSyncing}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors"
+                        style={{
+                            backgroundColor: isSyncing ? "var(--toss-page-bg)" : "var(--toss-blue)",
+                            color: isSyncing ? "var(--toss-text-tertiary)" : "#fff",
+                            border: "1px solid var(--toss-border)",
+                        }}
+                        title="payments 테이블에 없는 완료 주문을 Toss API로 역조회해 저장합니다"
+                    >
+                        <RefreshCw className={`size-3.5 ${isSyncing ? "animate-spin" : ""}`} />
+                        {isSyncing ? "동기화 중…" : "누락 결제 동기화"}
+                    </button>
                 </div>
             </div>
+
+            {/* 동기화 결과 토스트 */}
+            {syncResult && (
+                <div
+                    className="px-4 py-3 rounded-xl text-xs flex items-center justify-between gap-4"
+                    style={{
+                        backgroundColor: syncResult.errors.length > 0 ? "#FFF0F0" : "#E8F8F5",
+                        border: `1px solid ${syncResult.errors.length > 0 ? "#FFCDD2" : "#B2EFE1"}`,
+                        color: syncResult.errors.length > 0 ? "#FF4E4E" : "#00A878",
+                    }}
+                >
+                    <span>
+                        {syncResult.synced > 0
+                            ? `✅ ${syncResult.synced}건 새로 저장됨`
+                            : "이미 모두 동기화된 상태입니다."}
+                        {syncResult.skipped > 0 && ` · ${syncResult.skipped}건 Toss 조회 불가`}
+                        {syncResult.errors.length > 0 && ` · 오류: ${syncResult.errors.join(", ")}`}
+                    </span>
+                    <button onClick={() => setSyncResult(null)} className="opacity-60 hover:opacity-100 text-base leading-none">×</button>
+                </div>
+            )}
 
             {/* 요약 카드 */}
             <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
