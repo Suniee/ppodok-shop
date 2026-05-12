@@ -127,7 +127,7 @@ export default function SalesClient({ orders: initial }: { orders: AdminOrder[] 
             <div className="bg-white rounded-2xl overflow-hidden" style={{ border: "1px solid var(--toss-border)" }}>
                 <div className="px-5 pt-4 pb-0 flex items-center justify-between gap-4 flex-wrap">
                     {/* 상태 탭 */}
-                    <div className="flex gap-0.5 overflow-x-auto">
+                    <div className="flex gap-0.5 overflow-x-auto scrollbar-hide pb-0.5">
                         {tabs.map((t) => (
                             <button
                                 key={t.key}
