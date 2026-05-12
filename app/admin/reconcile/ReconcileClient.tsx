@@ -250,6 +250,7 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
                         disabled={isReceiving}
                         className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-85 disabled:opacity-40"
                         style={{ backgroundColor: "#E8F8F5", color: "#00A878", border: "1px solid #B2EFE1" }}
+                        title={`${start} ~ ${end} 기간 Toss 거래내역 수신`}
                     >
                         <Download className={`size-3.5 ${isReceiving ? "animate-bounce" : ""}`} />
                         {isReceiving ? "수신 중…" : "데이터수신"}

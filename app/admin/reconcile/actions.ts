@@ -27,8 +27,8 @@ export async function receiveTossDataAction(
             saved: result.saved,
             errors: result.errors,
             message: result.errors.length === 0
-                ? `${result.saved}건 저장 완료`
-                : `${result.saved}건 저장, ${result.errors.length}건 오류`,
+                ? `${start} ~ ${end} · ${result.saved}건 저장 완료`
+                : `${start} ~ ${end} · ${result.saved}건 저장, ${result.errors.length}건 오류`,
         }
     } catch (e) {
         return { saved: 0, errors: [], message: e instanceof Error ? e.message : "데이터 수신에 실패했습니다." }
