@@ -71,7 +71,7 @@ export async function fetchAllPaymentsForAdmin(): Promise<AdminPayment[]> {
     return data.map((row: Record<string, unknown>) => rowToAdminPayment(row))
 }
 
-// 특정 날짜 범위의 결제 조회 (대사용)
+// 특정 날짜 범위의 결제 조회 (대사 테이블용 — 전체 상태 포함)
 export async function fetchPaymentsByDateRange(
     startIso: string,
     endIso: string,
@@ -86,4 +86,22 @@ export async function fetchPaymentsByDateRange(
 
     if (error || !data) return []
     return data.map((row: Record<string, unknown>) => rowToAdminPayment(row))
+}
+
+// 특정 날짜 범위의 완료(DONE) 결제 합계 (대사 요약 카드용)
+export async function fetchDonePaymentsTotalByDateRange(
+    startIso: string,
+    endIso: string,
+): Promise<{ total: number; count: number }> {
+    const admin = createAdminClient()
+    const { data, error } = await admin
+        .from("payments")
+        .select("amount")
+        .eq("status", "DONE")
+        .gte("approved_at", startIso)
+        .lte("approved_at", endIso)
+
+    if (error || !data) return { total: 0, count: 0 }
+    const total = (data as { amount: number }[]).reduce((s, r) => s + r.amount, 0)
+    return { total, count: data.length }
 }

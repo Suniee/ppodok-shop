@@ -1,5 +1,5 @@
 import { fetchTossTransactions } from "@/lib/toss"
-import { fetchPaymentsByDateRange } from "@/lib/supabase/payments"
+import { fetchPaymentsByDateRange, fetchDonePaymentsTotalByDateRange } from "@/lib/supabase/payments"
 import ReconcileClient from "./ReconcileClient"
 
 interface Props {
@@ -19,10 +19,11 @@ export default async function ReconcilePage({ searchParams }: Props) {
     const startIso = `${range.start}T00:00:00`
     const endIso   = `${range.end}T23:59:59`
 
-    // Toss API와 DB를 병렬 조회
-    const [tossTransactions, dbPayments] = await Promise.all([
+    // Toss API, DB 전체 목록, DB 완료 합계를 병렬 조회
+    const [tossTransactions, dbPayments, dbDoneTotal] = await Promise.all([
         fetchTossTransactions(startIso, endIso).catch(() => []),
         fetchPaymentsByDateRange(startIso, `${range.end}T23:59:59+09:00`),
+        fetchDonePaymentsTotalByDateRange(startIso, `${range.end}T23:59:59+09:00`),
     ])
 
     // Toss: paymentKey별 가장 최근 트랜잭션 상태가 DONE인 건만 합산
@@ -38,10 +39,9 @@ export default async function ReconcilePage({ searchParams }: Props) {
     const tossApprovedTotal = doneEntries.reduce((s, v) => s + v.amount, 0)
     const tossApprovedCount = doneEntries.length
 
-    // DB: DONE 상태 건만 합산
-    const dbDone = dbPayments.filter((p) => p.status === "DONE")
-    const dbApprovedTotal = dbDone.reduce((s, p) => s + p.amount, 0)
-    const dbApprovedCount = dbDone.length
+    // DB: payments 테이블에서 DONE 상태 건만 DB 쿼리로 직접 집계
+    const dbApprovedTotal = dbDoneTotal.total
+    const dbApprovedCount = dbDoneTotal.count
 
     return (
         <ReconcileClient
