@@ -219,19 +219,36 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
             </div>
 
             {/* 요약 카드 */}
-            <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-                <SummaryCard
-                    label="Toss 완료 금액"
-                    value={`${(tossApprovedTotal / 10000).toLocaleString()}만원`}
-                    sub={`${tossApprovedCount}건 (승인 기준)`}
-                    color="#0064FF" icon={CreditCard}
-                />
-                <SummaryCard
-                    label="DB 완료 금액"
-                    value={`${(dbApprovedTotal / 10000).toLocaleString()}만원`}
-                    sub={`${dbApprovedCount}건 (전체 누적)`}
-                    color="#00A878" icon={TrendingUp}
-                />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* Toss / DB 완료 금액 비교 카드 */}
+                <div className="bg-white rounded-2xl px-5 py-4 sm:col-span-1"
+                    style={{ border: "1px solid var(--toss-border)" }}>
+                    <p className="text-xs font-semibold mb-3" style={{ color: "var(--toss-text-tertiary)" }}>완료 금액 비교</p>
+                    <div className="flex items-end justify-between gap-4">
+                        <div>
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                                <CreditCard className="size-3.5" style={{ color: "#0064FF" }} />
+                                <span className="text-[11px] font-medium" style={{ color: "var(--toss-text-secondary)" }}>Toss</span>
+                            </div>
+                            <p className="text-base font-black" style={{ color: "#0064FF", letterSpacing: "-0.03em" }}>
+                                {(tossApprovedTotal / 10000).toLocaleString()}만원
+                            </p>
+                            <p className="text-[10px] mt-0.5" style={{ color: "var(--toss-text-tertiary)" }}>{tossApprovedCount}건</p>
+                        </div>
+                        <div className="text-lg font-bold pb-4" style={{ color: "var(--toss-border)" }}>/</div>
+                        <div>
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                                <TrendingUp className="size-3.5" style={{ color: "#00A878" }} />
+                                <span className="text-[11px] font-medium" style={{ color: "var(--toss-text-secondary)" }}>DB</span>
+                            </div>
+                            <p className="text-base font-black" style={{ color: "#00A878", letterSpacing: "-0.03em" }}>
+                                {(dbApprovedTotal / 10000).toLocaleString()}만원
+                            </p>
+                            <p className="text-[10px] mt-0.5" style={{ color: "var(--toss-text-tertiary)" }}>{dbApprovedCount}건</p>
+                        </div>
+                    </div>
+                </div>
+
                 <SummaryCard
                     label="차액 (Toss − DB)"
                     value={`${Math.abs(diff / 10000).toLocaleString()}만원`}
