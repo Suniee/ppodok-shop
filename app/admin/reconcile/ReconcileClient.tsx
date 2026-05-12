@@ -327,7 +327,7 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
                         <table className="w-full">
                             <thead>
                                 <tr style={{ borderTop: "1px solid var(--toss-border)", borderBottom: "1px solid var(--toss-border)" }}>
-                                    {["상태", "승인 시각", "주문번호", "주문명", "Toss 금액", "DB 금액", "Toss 상태", "DB 상태", "paymentKey", "액션"].map((h) => (
+                                    {["상태", "승인 시각", "주문번호", "주문명", "Toss 금액", "DB 금액", "Toss 상태", "paymentKey", "액션"].map((h) => (
                                         <th key={h}
                                             className="px-4 py-3 text-left text-[11px] font-semibold whitespace-nowrap"
                                             style={{ color: "var(--toss-text-tertiary)", backgroundColor: "var(--toss-page-bg)" }}>
@@ -396,11 +396,6 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
                                             {/* Toss 상태 */}
                                             <td className="px-4 py-3">
                                                 <StatusBadge status={r.tossStatus} />
-                                            </td>
-
-                                            {/* DB 상태 */}
-                                            <td className="px-4 py-3">
-                                                <StatusBadge status={r.dbStatus} />
                                             </td>
 
                                             {/* paymentKey */}
