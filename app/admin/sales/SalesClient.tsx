@@ -47,7 +47,11 @@ function SummaryCard({
     )
 }
 
-export default function SalesClient({ orders: initial }: { orders: AdminOrder[] }) {
+export default function SalesClient({ orders: initial, totalRevenue, totalRevenueCount }: {
+    orders: AdminOrder[]
+    totalRevenue: number
+    totalRevenueCount: number
+}) {
     const [orders, setOrders] = useState<AdminOrder[]>(initial)
     const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all")
     const [search, setSearch] = useState("")
@@ -68,16 +72,10 @@ export default function SalesClient({ orders: initial }: { orders: AdminOrder[] 
 
     // 요약 통계
     const stats = useMemo(() => {
-        // 결제대기·취소 제외, 주문확인 이후 상태만 매출 합산
-        const EXCLUDED: OrderStatus[] = ["pending", "cancelled"]
-        const total = orders
-            .filter((o) => !EXCLUDED.includes(o.status))
-            .reduce((s, o) => s + o.totalPrice, 0)
         const counts = Object.fromEntries(
             STATUS_FLOW.map((s) => [s, orders.filter((o) => o.status === s).length])
         ) as Record<OrderStatus, number>
-        const totalCount = orders.filter((o) => !EXCLUDED.includes(o.status)).length
-        return { total, counts, totalCount }
+        return { counts }
     }, [orders])
 
     // 상태 변경
@@ -109,8 +107,8 @@ export default function SalesClient({ orders: initial }: { orders: AdminOrder[] 
 
             {/* 요약 카드 */}
             <div className="grid grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6 gap-3">
-                <SummaryCard label="총 매출" value={`${(stats.total / 10000).toLocaleString()}만원`}
-                    sub={`${stats.totalCount}건`} color="#0064FF" icon={TrendingUp} />
+                <SummaryCard label="총 매출" value={`${(totalRevenue / 10000).toLocaleString()}만원`}
+                    sub={`${totalRevenueCount}건 (결제 완료)`} color="#0064FF" icon={TrendingUp} />
                 <SummaryCard label="결제 대기" value={`${stats.counts.pending}건`}
                     color="#FFB800" icon={Clock} />
                 <SummaryCard label="배송 중" value={`${stats.counts.shipping}건`}
