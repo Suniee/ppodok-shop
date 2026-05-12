@@ -98,7 +98,7 @@ function RecentOrders() {
     <div className="bg-white rounded-2xl" style={{ border: "1px solid var(--toss-border)" }}>
       <div className="px-6 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid var(--toss-border)" }}>
         <p className="text-sm font-bold" style={{ color: "var(--toss-text-primary)" }}>최근 주문</p>
-        <a href="#" className="text-xs font-medium" style={{ color: "var(--toss-blue)" }}>전체보기</a>
+        <a href="/admin/sales" className="text-xs font-medium" style={{ color: "var(--toss-blue)" }}>전체보기</a>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
