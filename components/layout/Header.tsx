@@ -1,18 +1,58 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Search, ShoppingCart, Bell, ChevronDown } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import { Search, ShoppingCart, Bell, ChevronDown, User, LogOut } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { type Category } from "@/lib/data/categories"
 import { fetchActiveCategories } from "@/lib/supabase/categories"
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser"
+import type { User as SupabaseUser } from "@supabase/supabase-js"
 
 export default function Header() {
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
   const [catOpen, setCatOpen] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
+  const [user, setUser] = useState<SupabaseUser | null>(null)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const userMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     fetchActiveCategories().then(setCategories)
   }, [])
+
+  useEffect(() => {
+    const supabase = createSupabaseBrowserClient()
+
+    // 현재 세션 확인
+    supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
+
+    // 로그인/로그아웃 상태 변화 구독
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  // 유저 메뉴 외부 클릭 시 닫기
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  const handleLogout = async () => {
+    const supabase = createSupabaseBrowserClient()
+    await supabase.auth.signOut()
+    setUserMenuOpen(false)
+    router.push("/")
+    router.refresh()
+  }
 
   return (
     <header data-ui-id="header-main" className="bg-white sticky top-0 z-50" style={{ borderBottom: "1px solid var(--toss-border)" }}>
@@ -102,14 +142,56 @@ export default function Header() {
                 3
               </span>
             </button>
-            <a
-              data-ui-id="btn-header-login"
-              href="/login"
-              className="hidden sm:flex ml-2 px-4 py-2 rounded-full text-sm font-semibold text-white transition-colors hover:opacity-90"
-              style={{ backgroundColor: "var(--toss-blue)" }}
-            >
-              로그인
-            </a>
+            {user ? (
+              <div data-ui-id="menu-header-user" className="relative ml-2" ref={userMenuRef}>
+                <button
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-full text-sm font-semibold transition-colors hover:bg-gray-50"
+                  style={{ color: "var(--toss-text-primary)", border: "1px solid var(--toss-border)" }}
+                >
+                  <User className="size-4" style={{ color: "var(--toss-blue)" }} />
+                  <span className="max-w-[80px] truncate">
+                    {user.user_metadata?.name ?? user.email?.split("@")[0]}
+                  </span>
+                </button>
+                {userMenuOpen && (
+                  <div
+                    className="absolute top-full right-0 mt-2 w-44 bg-white rounded-2xl shadow-lg overflow-hidden"
+                    style={{ border: "1px solid var(--toss-border)" }}
+                  >
+                    <a
+                      data-ui-id="link-user-menu-profile"
+                      href="/account"
+                      className="flex items-center gap-2.5 px-4 py-3 text-sm transition-colors hover:bg-gray-50"
+                      style={{ color: "var(--toss-text-primary)" }}
+                      onClick={() => setUserMenuOpen(false)}
+                    >
+                      <User className="size-4" style={{ color: "var(--toss-text-tertiary)" }} />
+                      내 계정
+                    </a>
+                    <div style={{ height: "1px", backgroundColor: "var(--toss-border)" }} />
+                    <button
+                      data-ui-id="btn-user-menu-logout"
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2.5 px-4 py-3 text-sm transition-colors hover:bg-gray-50"
+                      style={{ color: "var(--toss-red)" }}
+                    >
+                      <LogOut className="size-4" />
+                      로그아웃
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <a
+                data-ui-id="btn-header-login"
+                href="/login"
+                className="hidden sm:flex ml-2 px-4 py-2 rounded-full text-sm font-semibold text-white transition-colors hover:opacity-90"
+                style={{ backgroundColor: "var(--toss-blue)" }}
+              >
+                로그인
+              </a>
+            )}
           </div>
         </div>
       </div>
