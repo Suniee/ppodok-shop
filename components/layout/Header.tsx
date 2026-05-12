@@ -6,14 +6,15 @@ import { useRouter } from "next/navigation"
 import { type Category } from "@/lib/data/categories"
 import { fetchActiveCategories } from "@/lib/supabase/categories"
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser"
-import type { User as SupabaseUser } from "@supabase/supabase-js"
-
+import { useCart } from "@/lib/store/CartContext"
 export default function Header() {
   const router = useRouter()
+  const { totalCount, openCart } = useCart()
   const [searchQuery, setSearchQuery] = useState("")
   const [catOpen, setCatOpen] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
-  const [user, setUser] = useState<SupabaseUser | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
+  const [displayName, setDisplayName] = useState<string | null>(null)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
 
@@ -21,15 +22,32 @@ export default function Header() {
     fetchActiveCategories().then(setCategories)
   }, [])
 
+  // profiles 테이블에서 이름 조회
+  const fetchProfile = async (uid: string) => {
+    const supabase = createSupabaseBrowserClient()
+    const { data } = await supabase
+      .from("profiles")
+      .select("name, email")
+      .eq("id", uid)
+      .single()
+    setDisplayName(data?.name ?? data?.email?.split("@")[0] ?? null)
+  }
+
   useEffect(() => {
     const supabase = createSupabaseBrowserClient()
 
-    // 현재 세션 확인
-    supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
+    // 페이지 로드마다 세션 확인 및 이름 갱신
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUserId(user?.id ?? null)
+      if (user) fetchProfile(user.id)
+    })
 
     // 로그인/로그아웃 상태 변화 구독
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
+      const uid = session?.user?.id ?? null
+      setUserId(uid)
+      if (uid) fetchProfile(uid)
+      else setDisplayName(null)
     })
 
     return () => subscription.unsubscribe()
@@ -89,7 +107,7 @@ export default function Header() {
                 {categories.map((cat) => (
                   <a
                     key={cat.id}
-                    href={`/category/${cat.slug}`}
+                    href={`/products?category=${cat.slug}`}
                     className="flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-gray-50"
                     style={{ color: "var(--toss-text-primary)" }}
                     onClick={() => setCatOpen(false)}
@@ -133,16 +151,23 @@ export default function Header() {
                 style={{ backgroundColor: "var(--toss-blue)" }}
               />
             </button>
-            <button data-ui-id="btn-header-cart" className="p-2.5 rounded-xl transition-colors hover:bg-gray-50 relative" style={{ color: "var(--toss-text-secondary)" }}>
+            <button
+              data-ui-id="btn-header-cart"
+              onClick={openCart}
+              className="p-2.5 rounded-xl transition-colors hover:bg-gray-50 relative"
+              style={{ color: "var(--toss-text-secondary)" }}
+            >
               <ShoppingCart className="size-5" />
-              <span
-                className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full text-white text-[10px] font-bold flex items-center justify-center"
-                style={{ backgroundColor: "var(--toss-blue)" }}
-              >
-                3
-              </span>
+              {totalCount > 0 && (
+                <span
+                  className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full text-white text-[10px] font-bold flex items-center justify-center"
+                  style={{ backgroundColor: "var(--toss-blue)" }}
+                >
+                  {totalCount > 99 ? "99+" : totalCount}
+                </span>
+              )}
             </button>
-            {user ? (
+            {userId ? (
               <div data-ui-id="menu-header-user" className="relative ml-2" ref={userMenuRef}>
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
@@ -151,7 +176,7 @@ export default function Header() {
                 >
                   <User className="size-4" style={{ color: "var(--toss-blue)" }} />
                   <span className="max-w-[80px] truncate">
-                    {user.user_metadata?.name ?? user.email?.split("@")[0]}
+                    {displayName ?? "…"}
                   </span>
                 </button>
                 {userMenuOpen && (

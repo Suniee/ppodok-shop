@@ -1,16 +1,29 @@
 "use client"
 
 import { useState } from "react"
-import { motion } from "framer-motion"
-import { Heart, ShoppingCart } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
+import { Heart, ShoppingCart, Check } from "lucide-react"
 import { type Product } from "@/lib/data/products"
+import { useCart } from "@/lib/store/CartContext"
 
 export default function ProductCard({ product }: { product: Product }) {
   const [liked, setLiked] = useState(false)
+  const [added, setAdded] = useState(false)
+  const { addItem, openCart } = useCart()
 
   const discount = product.originalPrice
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : null
+
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (added) return
+    addItem(product)
+    setAdded(true)
+    setTimeout(() => setAdded(false), 800)
+    // 담기 후 드로어 오픈
+    setTimeout(() => openCart(), 300)
+  }
 
   return (
     <motion.div
@@ -52,7 +65,6 @@ export default function ProductCard({ product }: { product: Product }) {
           />
         </motion.button>
 
-        {/* 이미지가 있으면 실제 이미지, 없으면 이모지 */}
         {product.images && product.images.length > 0 ? (
           <img
             src={product.images[0]}
@@ -104,14 +116,37 @@ export default function ProductCard({ product }: { product: Product }) {
             </div>
           </div>
 
-          {/* Add to cart */}
+          {/* 장바구니 담기 버튼 */}
           <motion.button
             data-ui-id="btn-product-add-cart"
-            whileTap={{ scale: 0.9 }}
-            className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white transition-opacity hover:opacity-85"
-            style={{ backgroundColor: "var(--toss-blue)" }}
+            whileTap={{ scale: 0.88 }}
+            onClick={handleAddToCart}
+            className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white transition-colors"
+            style={{ backgroundColor: added ? "#00C48C" : "var(--toss-blue)" }}
           >
-            <ShoppingCart className="size-3.5" />
+            <AnimatePresence mode="wait" initial={false}>
+              {added ? (
+                <motion.span
+                  key="check"
+                  initial={{ scale: 0, rotate: -30 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  exit={{ scale: 0 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 25 }}
+                >
+                  <Check className="size-3.5" />
+                </motion.span>
+              ) : (
+                <motion.span
+                  key="cart"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  exit={{ scale: 0 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  <ShoppingCart className="size-3.5" />
+                </motion.span>
+              )}
+            </AnimatePresence>
           </motion.button>
         </div>
       </div>
