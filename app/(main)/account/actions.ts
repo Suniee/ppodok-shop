@@ -40,16 +40,15 @@ export async function deleteAccountAction(): Promise<void> {
 
     const admin = createAdminClient()
 
-    // 탈퇴 이메일 보관 (이미 존재하면 withdrawn_at 갱신)
-    const { error: upsertError } = await admin
+    // 탈퇴 이메일 보관: 기존 레코드 삭제 후 재삽입 (functional index onConflict 호환 문제 우회)
+    const email = user.email!.toLowerCase()
+    await admin.from("withdrawn_profiles").delete().eq("email", email)
+    const { error: insertError } = await admin
         .from("withdrawn_profiles")
-        .upsert(
-            { email: user.email!.toLowerCase() },
-            { onConflict: "email" }
-        )
-    if (upsertError) throw new Error("회원탈퇴 처리 중 오류가 발생했습니다.")
+        .insert({ email })
+    if (insertError) throw new Error(`이메일 보관 실패: ${insertError.message}`)
 
     // auth.users에서 삭제 (profiles는 CASCADE로 자동 삭제)
     const { error: deleteError } = await admin.auth.admin.deleteUser(user.id)
-    if (deleteError) throw new Error("계정 삭제 중 오류가 발생했습니다.")
+    if (deleteError) throw new Error(`계정 삭제 실패: ${deleteError.message}`)
 }

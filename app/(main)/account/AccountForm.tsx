@@ -1,10 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { Loader2, Check, AlertTriangle } from "lucide-react"
 import AddressInput, { type AddressValue } from "@/components/ui/AddressInput"
 import { updateProfileAction, deleteAccountAction } from "./actions"
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser"
 
 interface Profile {
     email: string
@@ -51,7 +51,6 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 }
 
 export default function AccountForm({ profile }: { profile: Profile }) {
-    const router = useRouter()
     const [name, setName]   = useState(profile.name ?? "")
     const [phone, setPhone] = useState(profile.phone ?? "")
     const [address, setAddress] = useState<AddressValue>({
@@ -74,8 +73,9 @@ export default function AccountForm({ profile }: { profile: Profile }) {
         setWithdrawError(null)
         try {
             await deleteAccountAction()
-            router.push("/")
-            router.refresh()
+            // 서버에서 유저 삭제 후 클라이언트 세션도 정리하고 강제 이동
+            await createSupabaseBrowserClient().auth.signOut()
+            window.location.replace("/?toast=withdrawn")
         } catch (err) {
             setWithdrawError((err as Error).message ?? "탈퇴 처리 중 오류가 발생했습니다.")
             setWithdrawing(false)
@@ -97,7 +97,7 @@ export default function AccountForm({ profile }: { profile: Profile }) {
                 addressDetail: address.addressDetail,
             })
             setSaved(true)
-            setTimeout(() => setSaved(false), 3000)
+            setTimeout(() => { window.location.href = "/" }, 800)
         } catch (err) {
             setError((err as Error).message ?? "저장 중 오류가 발생했습니다.")
         } finally {
