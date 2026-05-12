@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from "framer-motion"
 import {
     LayoutDashboard, Users, Image, Package, Tag, Palette,
     Settings, LogOut, ChevronRight, TrendingUp, CreditCard,
-    BarChart2, ChevronDown,
+    BarChart2, ChevronDown, Scale,
 } from "lucide-react"
 
 type NavItem = {
@@ -36,6 +36,7 @@ const navEntries: NavEntry[] = [
         children: [
             { type: "item", href: "/admin/sales",          label: "매출 조회", icon: TrendingUp },
             { type: "item", href: "/admin/sales/payments", label: "결제 내역", icon: CreditCard },
+            { type: "item", href: "/admin/reconcile",      label: "결제 대사", icon: Scale },
         ],
     },
     { type: "item", href: "/admin/members",       label: "회원 관리",     icon: Users },

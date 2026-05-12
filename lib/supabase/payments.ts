@@ -41,6 +41,24 @@ export async function savePayment(data: PaymentRecord): Promise<void> {
     }, { onConflict: "payment_key" })
 }
 
+function rowToAdminPayment(row: Record<string, unknown>): AdminPayment {
+    const raw = (row.raw_response ?? {}) as Record<string, unknown>
+    const easyPay = raw.easyPay as { provider?: string } | null
+    return {
+        id:          row.id as string,
+        orderId:     row.order_id as string,
+        paymentKey:  row.payment_key as string,
+        orderName:   row.order_name as string,
+        method:      row.method as string,
+        provider:    easyPay?.provider ?? null,
+        amount:      row.amount as number,
+        status:      row.status as string,
+        requestedAt: row.requested_at as string | null,
+        approvedAt:  row.approved_at as string | null,
+        createdAt:   row.created_at as string,
+    }
+}
+
 export async function fetchAllPaymentsForAdmin(): Promise<AdminPayment[]> {
     const admin = createAdminClient()
     const { data, error } = await admin
@@ -50,22 +68,22 @@ export async function fetchAllPaymentsForAdmin(): Promise<AdminPayment[]> {
         .limit(500)
 
     if (error || !data) return []
+    return data.map((row: Record<string, unknown>) => rowToAdminPayment(row))
+}
 
-    return data.map((row: Record<string, unknown>) => {
-        const raw = (row.raw_response ?? {}) as Record<string, unknown>
-        const easyPay = raw.easyPay as { provider?: string } | null
-        return {
-            id:          row.id as string,
-            orderId:     row.order_id as string,
-            paymentKey:  row.payment_key as string,
-            orderName:   row.order_name as string,
-            method:      row.method as string,
-            provider:    easyPay?.provider ?? null,
-            amount:      row.amount as number,
-            status:      row.status as string,
-            requestedAt: row.requested_at as string | null,
-            approvedAt:  row.approved_at as string | null,
-            createdAt:   row.created_at as string,
-        }
-    })
+// 특정 날짜 범위의 결제 조회 (대사용)
+export async function fetchPaymentsByDateRange(
+    startIso: string,
+    endIso: string,
+): Promise<AdminPayment[]> {
+    const admin = createAdminClient()
+    const { data, error } = await admin
+        .from("payments")
+        .select("*")
+        .gte("approved_at", startIso)
+        .lte("approved_at", endIso)
+        .order("approved_at", { ascending: false })
+
+    if (error || !data) return []
+    return data.map((row: Record<string, unknown>) => rowToAdminPayment(row))
 }
