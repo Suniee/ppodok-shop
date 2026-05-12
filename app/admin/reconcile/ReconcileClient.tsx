@@ -59,13 +59,15 @@ function SummaryCard({
 }
 
 interface Props {
-    tossTransactions: TossTransaction[]
-    dbPayments:       AdminPayment[]
-    initialStart:     string
-    initialEnd:       string
+    tossTransactions:  TossTransaction[]
+    dbPayments:        AdminPayment[]
+    initialStart:      string
+    initialEnd:        string
+    tossApprovedTotal: number  // 서버에서 Toss API 조회 후 승인(DONE) 건만 합산
+    tossApprovedCount: number
 }
 
-export default function ReconcileClient({ tossTransactions, dbPayments, initialStart, initialEnd }: Props) {
+export default function ReconcileClient({ tossTransactions, dbPayments, initialStart, initialEnd, tossApprovedTotal, tossApprovedCount }: Props) {
     const router = useRouter()
     const [start,  setStart]  = useState(initialStart)
     const [end,    setEnd]    = useState(initialEnd)
@@ -158,13 +160,10 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
         db_only:   rows.filter((r) => r.match === "db_only").length,
     }), [rows])
 
-    const tossTotal = tossTransactions
-        .filter((t) => t.status === "DONE")
-        .reduce((s, t) => s + t.amount, 0)
     const dbTotal = dbPayments
         .filter((p) => p.status === "DONE")
         .reduce((s, p) => s + p.amount, 0)
-    const diff = tossTotal - dbTotal
+    const diff = tossApprovedTotal - dbTotal
 
     const handleSearch = () => {
         router.push(`/admin/reconcile?start=${start}&end=${end}`)
@@ -224,8 +223,8 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
             <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
                 <SummaryCard
                     label="Toss 완료 금액"
-                    value={`${(tossTotal / 10000).toLocaleString()}만원`}
-                    sub={`${tossTransactions.filter((t) => t.status === "DONE").length}건`}
+                    value={`${(tossApprovedTotal / 10000).toLocaleString()}만원`}
+                    sub={`${tossApprovedCount}건 (승인 기준)`}
                     color="#0064FF" icon={CreditCard}
                 />
                 <SummaryCard
@@ -385,8 +384,8 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
                                                         </p>
                                                     )}
 
-                                                    {/* 재저장 — DB 미저장 건만 */}
-                                                    {r.match === "toss_only" && (
+                                                    {/* 재저장 — DB 미저장 건이면서 취소되지 않은 건만 */}
+                                                    {r.match === "toss_only" && r.tossStatus !== "CANCELED" && r.tossStatus !== "PARTIAL_CANCELED" && (
                                                         <button
                                                             onClick={() => handleResave(r.paymentKey, r.orderId)}
                                                             disabled={isPending}
