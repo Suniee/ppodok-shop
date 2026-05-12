@@ -28,12 +28,16 @@ export default function SignupPage() {
         setLoading(true)
         setError(null)
 
-        // 탈퇴 이메일 재가입 차단
-        const isWithdrawn = await checkWithdrawnEmailAction(email)
-        if (isWithdrawn) {
-            setError("이 이메일은 탈퇴 처리된 계정입니다. 다른 이메일을 사용해 주세요.")
-            setLoading(false)
-            return
+        try {
+            // 탈퇴 이메일 재가입 차단
+            const isWithdrawn = await checkWithdrawnEmailAction(email)
+            if (isWithdrawn) {
+                setError("이 이메일은 탈퇴 처리된 계정입니다. 다른 이메일을 사용해 주세요.")
+                setLoading(false)
+                return
+            }
+        } catch {
+            // checkWithdrawnEmailAction 실패 시 차단하지 않고 진행
         }
 
         const supabase = createSupabaseBrowserClient()
@@ -41,17 +45,18 @@ export default function SignupPage() {
             email: email.trim(),
             password,
             options: {
-                data: { name: name.trim() },   // auth.users.raw_user_meta_data에 저장
+                data: { name: name.trim() },
+                emailRedirectTo: `${window.location.origin}/confirm-email`,
             },
         })
 
         if (authError) {
             setError(
-                authError.message.includes("already registered")
+                authError.message.includes("already registered") || authError.message.includes("already exists")
                     ? "이미 사용 중인 이메일입니다."
                     : authError.message.includes("Password should be")
                     ? "비밀번호는 6자 이상이어야 합니다."
-                    : "가입 중 오류가 발생했습니다. 다시 시도해 주세요."
+                    : `오류: ${authError.message}`
             )
             setLoading(false)
             return
