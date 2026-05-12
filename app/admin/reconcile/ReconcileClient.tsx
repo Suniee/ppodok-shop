@@ -1,13 +1,14 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
     CheckCircle2, XCircle, AlertTriangle, Search,
-    TrendingUp, CreditCard, Scale,
+    TrendingUp, CreditCard, Scale, RotateCcw, Ban,
 } from "lucide-react"
 import type { TossTransaction } from "@/lib/toss"
 import type { AdminPayment } from "@/lib/supabase/payments"
+import { resavePaymentAction, cancelPaymentAction } from "./actions"
 
 type MatchStatus = "matched" | "mismatch" | "toss_only" | "db_only"
 
@@ -70,6 +71,36 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
     const [end,    setEnd]    = useState(initialEnd)
     const [tab,    setTab]    = useState<MatchStatus | "all">("all")
     const [search, setSearch] = useState("")
+    const [isPending, startTransition] = useTransition()
+
+    // 취소 인라인 폼 상태: paymentKey → 입력 중인 사유
+    const [cancelForms, setCancelForms] = useState<Record<string, string>>({})
+    // 결과 토스트: paymentKey → { ok, message }
+    const [results, setResults] = useState<Record<string, { ok: boolean; message: string }>>({})
+
+    const openCancelForm = (key: string) =>
+        setCancelForms((prev) => ({ ...prev, [key]: prev[key] ?? "" }))
+    const closeCancelForm = (key: string) =>
+        setCancelForms((prev) => { const n = { ...prev }; delete n[key]; return n })
+
+    const handleResave = (paymentKey: string, orderId: string) => {
+        startTransition(async () => {
+            const result = await resavePaymentAction(paymentKey, orderId)
+            setResults((prev) => ({ ...prev, [paymentKey]: result }))
+            if (result.ok) router.refresh()
+        })
+    }
+
+    const handleCancel = (paymentKey: string, orderId: string) => {
+        const reason = cancelForms[paymentKey]?.trim()
+        if (!reason) return
+        startTransition(async () => {
+            const result = await cancelPaymentAction(paymentKey, orderId, reason)
+            setResults((prev) => ({ ...prev, [paymentKey]: result }))
+            closeCancelForm(paymentKey)
+            if (result.ok) router.refresh()
+        })
+    }
 
     // Toss와 DB를 paymentKey 기준으로 대사
     const rows = useMemo<ReconcileRow[]>(() => {
@@ -261,7 +292,7 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
                         <table className="w-full">
                             <thead>
                                 <tr style={{ borderTop: "1px solid var(--toss-border)", borderBottom: "1px solid var(--toss-border)" }}>
-                                    {["상태", "승인 시각", "주문번호", "주문명", "Toss 금액", "DB 금액", "Toss 상태", "paymentKey"].map((h) => (
+                                    {["상태", "승인 시각", "주문번호", "주문명", "Toss 금액", "DB 금액", "Toss 상태", "paymentKey", "액션"].map((h) => (
                                         <th key={h}
                                             className="px-4 py-3 text-left text-[11px] font-semibold whitespace-nowrap"
                                             style={{ color: "var(--toss-text-tertiary)", backgroundColor: "var(--toss-page-bg)" }}>
@@ -341,6 +372,76 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
                                                     title={r.paymentKey}>
                                                     {r.paymentKey.slice(0, 18)}…
                                                 </span>
+                                            </td>
+
+                                            {/* 액션 */}
+                                            <td className="px-4 py-3">
+                                                <div className="flex flex-col gap-1.5 min-w-[120px]">
+                                                    {/* 결과 메시지 */}
+                                                    {results[r.paymentKey] && (
+                                                        <p className="text-[10px] font-semibold"
+                                                            style={{ color: results[r.paymentKey].ok ? "#00A878" : "#FF4E4E" }}>
+                                                            {results[r.paymentKey].message}
+                                                        </p>
+                                                    )}
+
+                                                    {/* 재저장 — DB 미저장 건만 */}
+                                                    {r.match === "toss_only" && (
+                                                        <button
+                                                            onClick={() => handleResave(r.paymentKey, r.orderId)}
+                                                            disabled={isPending}
+                                                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-opacity hover:opacity-80 disabled:opacity-40"
+                                                            style={{ backgroundColor: "#EBF3FF", color: "var(--toss-blue)" }}
+                                                        >
+                                                            <RotateCcw className="size-3" />
+                                                            재저장
+                                                        </button>
+                                                    )}
+
+                                                    {/* 결제 취소 — DONE 상태인 Toss 건 */}
+                                                    {r.tossStatus === "DONE" && !cancelForms[r.paymentKey] && (
+                                                        <button
+                                                            onClick={() => openCancelForm(r.paymentKey)}
+                                                            disabled={isPending}
+                                                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-opacity hover:opacity-80 disabled:opacity-40"
+                                                            style={{ backgroundColor: "#FFF0F0", color: "#FF4E4E" }}
+                                                        >
+                                                            <Ban className="size-3" />
+                                                            결제취소
+                                                        </button>
+                                                    )}
+
+                                                    {/* 취소 사유 입력 폼 */}
+                                                    {cancelForms[r.paymentKey] !== undefined && (
+                                                        <div className="flex flex-col gap-1">
+                                                            <input
+                                                                type="text"
+                                                                value={cancelForms[r.paymentKey]}
+                                                                onChange={(e) => setCancelForms((prev) => ({ ...prev, [r.paymentKey]: e.target.value }))}
+                                                                placeholder="취소 사유 입력"
+                                                                className="text-[11px] px-2 py-1 rounded-lg outline-none w-full"
+                                                                style={{ border: "1px solid var(--toss-border)", color: "var(--toss-text-primary)" }}
+                                                            />
+                                                            <div className="flex gap-1">
+                                                                <button
+                                                                    onClick={() => handleCancel(r.paymentKey, r.orderId)}
+                                                                    disabled={isPending || !cancelForms[r.paymentKey]?.trim()}
+                                                                    className="flex-1 py-1 rounded-lg text-[10px] font-bold text-white transition-opacity hover:opacity-80 disabled:opacity-40"
+                                                                    style={{ backgroundColor: "#FF4E4E" }}
+                                                                >
+                                                                    확인
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => closeCancelForm(r.paymentKey)}
+                                                                    className="flex-1 py-1 rounded-lg text-[10px] font-semibold transition-colors hover:bg-gray-100"
+                                                                    style={{ border: "1px solid var(--toss-border)", color: "var(--toss-text-secondary)" }}
+                                                                >
+                                                                    취소
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     )

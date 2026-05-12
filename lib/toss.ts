@@ -70,6 +70,32 @@ export async function fetchTossPayment(paymentKey: string): Promise<TossPaymentD
     return res.json()
 }
 
+// ── 결제 취소 ──────────────────────────────────────────────────
+
+// 서버 전용: 토스페이먼츠 결제 취소 API 호출
+export async function cancelTossPayment(
+    paymentKey: string,
+    cancelReason: string,
+): Promise<Record<string, unknown>> {
+    const res = await fetch(
+        `https://api.tosspayments.com/v1/payments/${paymentKey}/cancel`,
+        {
+            method: "POST",
+            headers: {
+                Authorization: getAuthHeader(),
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ cancelReason }),
+            cache: "no-store",
+        }
+    )
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) {
+        throw new Error((body as { message?: string }).message ?? "결제 취소에 실패했습니다.")
+    }
+    return body as Record<string, unknown>
+}
+
 // ── 결제 승인 ──────────────────────────────────────────────────
 
 // 서버 전용: 토스페이먼츠 결제 승인 API 호출 (secret key 사용)
