@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Search, ShoppingCart, Bell, ChevronDown, User, LogOut } from "lucide-react"
+import { Search, ShoppingCart, Bell, ChevronDown, User, LogOut, Package } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { type Category } from "@/lib/data/categories"
 import { fetchActiveCategories } from "@/lib/supabase/categories"
@@ -193,6 +193,16 @@ export default function Header() {
                     >
                       <User className="size-4" style={{ color: "var(--toss-text-tertiary)" }} />
                       내 계정
+                    </a>
+                    <a
+                      data-ui-id="link-user-menu-orders"
+                      href="/orders"
+                      className="flex items-center gap-2.5 px-4 py-3 text-sm transition-colors hover:bg-gray-50"
+                      style={{ color: "var(--toss-text-primary)" }}
+                      onClick={() => setUserMenuOpen(false)}
+                    >
+                      <Package className="size-4" style={{ color: "var(--toss-text-tertiary)" }} />
+                      주문/취소 내역
                     </a>
                     <div style={{ height: "1px", backgroundColor: "var(--toss-border)" }} />
                     <button
