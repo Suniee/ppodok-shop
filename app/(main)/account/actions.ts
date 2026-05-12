@@ -32,3 +32,24 @@ export async function updateProfileAction(input: ProfileUpdateInput): Promise<vo
 
     if (error) throw new Error(error.message)
 }
+
+export async function deleteAccountAction(): Promise<void> {
+    const supabase = await createSupabaseServerClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new Error("로그인이 필요합니다.")
+
+    const admin = createAdminClient()
+
+    // 탈퇴 이메일 보관 (이미 존재하면 withdrawn_at 갱신)
+    const { error: upsertError } = await admin
+        .from("withdrawn_profiles")
+        .upsert(
+            { email: user.email!.toLowerCase() },
+            { onConflict: "email" }
+        )
+    if (upsertError) throw new Error("회원탈퇴 처리 중 오류가 발생했습니다.")
+
+    // auth.users에서 삭제 (profiles는 CASCADE로 자동 삭제)
+    const { error: deleteError } = await admin.auth.admin.deleteUser(user.id)
+    if (deleteError) throw new Error("계정 삭제 중 오류가 발생했습니다.")
+}

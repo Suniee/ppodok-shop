@@ -1,9 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { Loader2, Check } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Loader2, Check, AlertTriangle } from "lucide-react"
 import AddressInput, { type AddressValue } from "@/components/ui/AddressInput"
-import { updateProfileAction } from "./actions"
+import { updateProfileAction, deleteAccountAction } from "./actions"
 
 interface Profile {
     email: string
@@ -50,6 +51,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 }
 
 export default function AccountForm({ profile }: { profile: Profile }) {
+    const router = useRouter()
     const [name, setName]   = useState(profile.name ?? "")
     const [phone, setPhone] = useState(profile.phone ?? "")
     const [address, setAddress] = useState<AddressValue>({
@@ -60,6 +62,25 @@ export default function AccountForm({ profile }: { profile: Profile }) {
     const [saving, setSaving]     = useState(false)
     const [saved, setSaved]       = useState(false)
     const [error, setError]       = useState<string | null>(null)
+
+    // 회원탈퇴 상태
+    const [withdrawOpen, setWithdrawOpen]   = useState(false)
+    const [withdrawInput, setWithdrawInput] = useState("")
+    const [withdrawing, setWithdrawing]     = useState(false)
+    const [withdrawError, setWithdrawError] = useState<string | null>(null)
+
+    const handleWithdraw = async () => {
+        setWithdrawing(true)
+        setWithdrawError(null)
+        try {
+            await deleteAccountAction()
+            router.push("/")
+            router.refresh()
+        } catch (err) {
+            setWithdrawError((err as Error).message ?? "탈퇴 처리 중 오류가 발생했습니다.")
+            setWithdrawing(false)
+        }
+    }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -153,6 +174,85 @@ export default function AccountForm({ profile }: { profile: Profile }) {
                     <><Check className="size-4" />저장되었습니다</>
                 ) : "저장하기"}
             </button>
+
+            {/* 구분선 */}
+            <div className="pt-2" style={{ borderTop: "1px solid var(--toss-border)" }} />
+
+            {/* 회원탈퇴 섹션 */}
+            {!withdrawOpen ? (
+                <button
+                    data-ui-id="btn-account-withdraw-open"
+                    type="button"
+                    onClick={() => setWithdrawOpen(true)}
+                    className="w-full py-3 rounded-2xl text-sm font-semibold transition-colors hover:bg-red-50"
+                    style={{ color: "var(--toss-red)", border: "1px solid #FFCDD2" }}
+                >
+                    회원탈퇴
+                </button>
+            ) : (
+                <div
+                    data-ui-id="section-account-withdraw"
+                    className="rounded-2xl p-5 space-y-4"
+                    style={{ backgroundColor: "#FFF5F5", border: "1px solid #FFCDD2" }}
+                >
+                    <div className="flex items-start gap-3">
+                        <AlertTriangle className="size-5 flex-shrink-0 mt-0.5" style={{ color: "var(--toss-red)" }} />
+                        <div>
+                            <p className="text-sm font-bold" style={{ color: "var(--toss-red)" }}>정말 탈퇴하시겠어요?</p>
+                            <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--toss-text-secondary)" }}>
+                                탈퇴 시 계정 정보가 모두 삭제되며 복구할 수 없습니다.<br />
+                                동일한 이메일로 24시간 이내 재가입이 불가능합니다.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-semibold" style={{ color: "var(--toss-text-secondary)" }}>
+                            확인을 위해 <span style={{ color: "var(--toss-red)" }}>탈퇴합니다</span> 를 입력하세요
+                        </label>
+                        <input
+                            type="text"
+                            value={withdrawInput}
+                            onChange={(e) => setWithdrawInput(e.target.value)}
+                            placeholder="탈퇴합니다"
+                            className={inputCls}
+                            style={{ ...inputStyle, borderColor: "#FFCDD2", backgroundColor: "#fff" }}
+                            onFocus={(e) => (e.currentTarget.style.borderColor = "var(--toss-red)")}
+                            onBlur={(e)  => (e.currentTarget.style.borderColor = "#FFCDD2")}
+                        />
+                    </div>
+
+                    {withdrawError && (
+                        <div className="rounded-2xl px-4 py-3 text-xs font-medium"
+                            style={{ backgroundColor: "#FFF0F0", color: "var(--toss-red)" }}>
+                            {withdrawError}
+                        </div>
+                    )}
+
+                    <div className="flex gap-2">
+                        <button
+                            type="button"
+                            onClick={() => { setWithdrawOpen(false); setWithdrawInput(""); setWithdrawError(null) }}
+                            className="flex-1 py-3 rounded-2xl text-sm font-semibold transition-colors hover:bg-gray-50"
+                            style={{ color: "var(--toss-text-secondary)", border: "1px solid var(--toss-border)" }}
+                        >
+                            취소
+                        </button>
+                        <button
+                            data-ui-id="btn-account-withdraw-confirm"
+                            type="button"
+                            onClick={handleWithdraw}
+                            disabled={withdrawing || withdrawInput !== "탈퇴합니다"}
+                            className="flex-1 py-3 rounded-2xl text-sm font-bold text-white transition-opacity hover:opacity-85 disabled:opacity-40 flex items-center justify-center gap-2"
+                            style={{ backgroundColor: "var(--toss-red)" }}
+                        >
+                            {withdrawing
+                                ? <><Loader2 className="size-4 animate-spin" />처리 중...</>
+                                : "탈퇴하기"}
+                        </button>
+                    </div>
+                </div>
+            )}
         </form>
     )
 }

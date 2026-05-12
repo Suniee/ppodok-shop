@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Eye, EyeOff, Loader2, CheckCircle2 } from "lucide-react"
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser"
+import { checkWithdrawnEmailAction } from "./actions"
 
 export default function SignupPage() {
     const router = useRouter()
@@ -26,6 +27,14 @@ export default function SignupPage() {
 
         setLoading(true)
         setError(null)
+
+        // 탈퇴 이메일 재가입 차단
+        const isWithdrawn = await checkWithdrawnEmailAction(email)
+        if (isWithdrawn) {
+            setError("이 이메일은 탈퇴 처리된 계정입니다. 다른 이메일을 사용해 주세요.")
+            setLoading(false)
+            return
+        }
 
         const supabase = createSupabaseBrowserClient()
         const { data, error: authError } = await supabase.auth.signUp({
