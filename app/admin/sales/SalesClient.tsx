@@ -22,7 +22,7 @@ const PAYMENT_LABEL: Record<string, string> = {
     tosspay:  "토스페이",
 }
 
-const STATUS_FLOW: OrderStatus[] = ["pending", "confirmed", "shipping", "delivered", "completed", "cancelled"]
+const STATUS_FLOW: OrderStatus[] = ["pending", "confirmed", "completed", "shipping", "delivered", "cancelled"]
 
 function formatDate(iso: string) {
     const d = new Date(iso)
@@ -86,9 +86,9 @@ export default function SalesClient({ orders: initial }: { orders: AdminOrder[] 
         { key: "all",       label: "전체",    count: orders.length },
         { key: "pending",   label: "결제 대기", count: stats.counts.pending },
         { key: "confirmed", label: "주문 확인", count: stats.counts.confirmed },
+        { key: "completed", label: "주문 완료", count: stats.counts.completed },
         { key: "shipping",  label: "배송 중",  count: stats.counts.shipping },
         { key: "delivered", label: "배송 완료", count: stats.counts.delivered },
-        { key: "completed", label: "주문 완료", count: stats.counts.completed },
         { key: "cancelled", label: "취소",     count: stats.counts.cancelled },
     ]
 
