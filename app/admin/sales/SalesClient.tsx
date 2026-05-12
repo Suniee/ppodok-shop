@@ -10,7 +10,6 @@ const STATUS_META: Record<OrderStatus, { label: string; bg: string; color: strin
     confirmed: { label: "주문 확인", bg: "#EBF3FF", color: "#0064FF", icon: ShoppingCart },
     shipping:  { label: "배송 중",   bg: "#F3E8FF", color: "#9333EA", icon: Truck },
     delivered: { label: "배송 완료", bg: "#E8F8F5", color: "#00A878", icon: CheckCircle2 },
-    completed:          { label: "주문 완료", bg: "#F0FDF4", color: "#16A34A", icon: BadgeCheck },
     purchase_confirmed: { label: "구매 확정", bg: "#ECFDF5", color: "#059669", icon: BadgeCheck },
     review_written:     { label: "리뷰 작성", bg: "#FFF7ED", color: "#EA580C", icon: PenLine },
     cancelled:          { label: "취소됨",   bg: "#FFF0F0", color: "#FF4E4E", icon: XCircle },
@@ -24,7 +23,7 @@ const PAYMENT_LABEL: Record<string, string> = {
     tosspay:  "토스페이",
 }
 
-const STATUS_FLOW: OrderStatus[] = ["pending", "confirmed", "completed", "shipping", "delivered", "purchase_confirmed", "review_written", "cancelled"]
+const STATUS_FLOW: OrderStatus[] = ["pending", "confirmed", "shipping", "delivered", "purchase_confirmed", "review_written", "cancelled"]
 
 function formatDate(iso: string) {
     const d = new Date(iso)
@@ -88,7 +87,6 @@ export default function SalesClient({ orders: initial }: { orders: AdminOrder[] 
         { key: "all",       label: "전체",    count: orders.length },
         { key: "pending",   label: "결제 대기", count: stats.counts.pending },
         { key: "confirmed", label: "주문 확인", count: stats.counts.confirmed },
-        { key: "completed", label: "주문 완료", count: stats.counts.completed },
         { key: "shipping",  label: "배송 중",  count: stats.counts.shipping },
         { key: "delivered",          label: "배송 완료", count: stats.counts.delivered },
         { key: "purchase_confirmed", label: "구매 확정", count: stats.counts.purchase_confirmed },
