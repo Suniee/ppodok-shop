@@ -76,7 +76,7 @@ export default function SalesClient({ orders: initial }: { orders: AdminOrder[] 
         const counts = Object.fromEntries(
             STATUS_FLOW.map((s) => [s, orders.filter((o) => o.status === s).length])
         ) as Record<OrderStatus, number>
-        const totalCount = orders.filter((o) => o.status !== "cancelled").length
+        const totalCount = orders.filter((o) => !EXCLUDED.includes(o.status)).length
         return { total, counts, totalCount }
     }, [orders])
 
