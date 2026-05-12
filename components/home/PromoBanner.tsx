@@ -2,86 +2,74 @@
 
 import { motion } from "framer-motion"
 import { ArrowRight } from "lucide-react"
+import type { Banner } from "@/lib/supabase/banners"
 
-export default function PromoBanner() {
-  return (
-    <section data-ui-id="section-home-promo" className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3">
+export default function PromoBanner({ banners }: { banners: Banner[] }) {
+    if (banners.length === 0) return null
 
-      {/* Primary — Toss Blue */}
-      <motion.a
-        data-ui-id="banner-promo-detergent"
-        href="/category/detergent"
-        whileHover={{ scale: 1.015 }}
-        whileTap={{ scale: 0.985 }}
-        transition={{ type: "spring", stiffness: 400, damping: 30 }}
-        className="relative overflow-hidden rounded-3xl flex items-center justify-between px-7 py-7 cursor-pointer"
-        style={{ backgroundColor: "var(--toss-blue)" }}
-      >
-        {/* Soft circle decoration */}
-        <div
-          className="absolute -top-6 -right-6 w-36 h-36 rounded-full opacity-20"
-          style={{ backgroundColor: "#fff" }}
-        />
-        <div
-          className="absolute -bottom-10 right-16 w-24 h-24 rounded-full opacity-10"
-          style={{ backgroundColor: "#fff" }}
-        />
+    const [main, ...subs] = banners
 
-        <div className="relative z-10">
-          <span
-            className="inline-block text-xs font-bold px-2.5 py-1 rounded-full mb-3"
-            style={{ backgroundColor: "rgba(255,255,255,0.2)", color: "#fff" }}
-          >
-            이달의 특가
-          </span>
-          <h3 className="text-xl font-black text-white leading-snug mb-4">
-            세제/세탁용품<br />최대 30% 할인
-          </h3>
-          <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-white/80 hover:text-white transition-colors">
-            바로가기 <ArrowRight className="size-3.5" />
-          </span>
-        </div>
-        <span className="text-5xl relative z-10 mr-2">🧺</span>
-      </motion.a>
+    return (
+        <section data-ui-id="section-home-promo" className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3">
 
-      {/* Secondary — light */}
-      <div className="grid grid-rows-2 gap-3">
-        <motion.a
-          data-ui-id="banner-promo-join"
-          href="/join"
-          whileHover={{ scale: 1.015 }}
-          whileTap={{ scale: 0.985 }}
-          transition={{ type: "spring", stiffness: 400, damping: 30 }}
-          className="bg-white rounded-3xl flex items-center justify-between px-6 py-5 cursor-pointer"
-          style={{ border: "1px solid var(--toss-border)" }}
-        >
-          <div>
-            <p className="text-xs font-medium mb-1" style={{ color: "var(--toss-text-tertiary)" }}>신규 회원 혜택</p>
-            <p className="text-base font-bold" style={{ color: "var(--toss-text-primary)" }}>
-              첫 구매 시 <span style={{ color: "var(--toss-blue)" }}>10% 할인</span>
-            </p>
-          </div>
-          <span className="text-3xl">🎉</span>
-        </motion.a>
+            {/* 대형 배너 (order 1번) */}
+            <motion.a
+                data-ui-id="banner-promo-main"
+                href={main.link}
+                whileHover={{ scale: 1.015 }}
+                whileTap={{ scale: 0.985 }}
+                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                className="relative overflow-hidden rounded-3xl flex items-center justify-between px-7 py-7 cursor-pointer"
+                style={{ backgroundColor: main.bg_color }}
+            >
+                <div className="absolute -top-6 -right-6 w-36 h-36 rounded-full opacity-20" style={{ backgroundColor: "#fff" }} />
+                <div className="absolute -bottom-10 right-16 w-24 h-24 rounded-full opacity-10" style={{ backgroundColor: "#fff" }} />
+                <div className="relative z-10">
+                    <span
+                        className="inline-block text-xs font-bold px-2.5 py-1 rounded-full mb-3"
+                        style={{ backgroundColor: "rgba(255,255,255,0.2)", color: main.text_color === "#ffffff" ? "#fff" : main.text_color }}
+                    >
+                        {main.tag}
+                    </span>
+                    <h3 className="text-xl font-black leading-snug mb-4" style={{ color: main.text_color === "#ffffff" ? "#fff" : "#191F28" }}>
+                        {main.title}
+                    </h3>
+                    <span className="inline-flex items-center gap-1.5 text-sm font-semibold transition-colors"
+                        style={{ color: main.text_color === "#ffffff" ? "rgba(255,255,255,0.8)" : main.text_color }}>
+                        {main.cta} <ArrowRight className="size-3.5" />
+                    </span>
+                </div>
+                <span className="text-5xl relative z-10 mr-2">{main.emoji}</span>
+            </motion.a>
 
-        <motion.a
-          data-ui-id="banner-promo-free-shipping"
-          href="/products?filter=free-shipping"
-          whileHover={{ scale: 1.015 }}
-          whileTap={{ scale: 0.985 }}
-          transition={{ type: "spring", stiffness: 400, damping: 30 }}
-          className="bg-white rounded-3xl flex items-center justify-between px-6 py-5 cursor-pointer"
-          style={{ border: "1px solid var(--toss-border)" }}
-        >
-          <div>
-            <p className="text-xs font-medium mb-1" style={{ color: "var(--toss-text-tertiary)" }}>무료배송</p>
-            <p className="text-base font-bold" style={{ color: "var(--toss-text-primary)" }}>
-              <span style={{ color: "var(--toss-blue)" }}>3만원</span> 이상 주문 시
-            </p>
-          </div>
-          <span className="text-3xl">🚚</span>
-        </motion.a>
-      </div>
-    </section>
-  )
+            {/* 소형 배너들 (order 2·3번) */}
+            <div className="grid grid-rows-2 gap-3">
+                {subs.slice(0, 2).map((b) => (
+                    <motion.a
+                        key={b.id}
+                        data-ui-id={`banner-promo-${b.id}`}
+                        href={b.link}
+                        whileHover={{ scale: 1.015 }}
+                        whileTap={{ scale: 0.985 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                        className="rounded-3xl flex items-center justify-between px-6 py-5 cursor-pointer"
+                        style={{ backgroundColor: b.bg_color, border: b.bg_color === "#ffffff" ? "1px solid var(--toss-border)" : "none" }}
+                    >
+                        <div>
+                            <p className="text-xs font-medium mb-1" style={{ color: "var(--toss-text-tertiary)" }}>{b.tag}</p>
+                            <p className="text-base font-bold" style={{ color: "var(--toss-text-primary)" }}>
+                                {b.title.includes(" ") ? (
+                                    <>
+                                        <span style={{ color: b.text_color }}>{b.title.split(" ")[0]}</span>
+                                        {" " + b.title.split(" ").slice(1).join(" ")}
+                                    </>
+                                ) : <span style={{ color: b.text_color }}>{b.title}</span>}
+                            </p>
+                        </div>
+                        <span className="text-3xl">{b.emoji}</span>
+                    </motion.a>
+                ))}
+            </div>
+        </section>
+    )
 }

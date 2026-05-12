@@ -5,12 +5,14 @@ import BestItems from "@/components/home/BestItems"
 import PromoBanner from "@/components/home/PromoBanner"
 import { fetchActiveCategories } from "@/lib/supabase/categories"
 import { fetchProducts } from "@/lib/supabase/products"
+import { fetchActiveBanners } from "@/lib/supabase/banners"
 
-// 서버 컴포넌트 - DB 조회 후 각 섹션에 props로 전달
 export default async function HomePage() {
-  const [categories, products] = await Promise.all([
+  const [categories, products, heroBanners, promoBanners] = await Promise.all([
     fetchActiveCategories().catch(() => []),
     fetchProducts().catch(() => []),
+    fetchActiveBanners("hero").catch(() => []),
+    fetchActiveBanners("promo").catch(() => []),
   ])
 
   const newItems  = products.filter((p) => p.isNew  && (p.isVisible ?? true))
@@ -18,10 +20,10 @@ export default async function HomePage() {
 
   return (
     <div data-ui-id="page-home" className="max-w-5xl mx-auto px-5 py-5 pb-16 space-y-0">
-      <HeroBanner />
+      <HeroBanner banners={heroBanners} />
       <CategoryGrid categories={categories} />
       <NewArrivals items={newItems} />
-      <PromoBanner />
+      <PromoBanner banners={promoBanners} />
       <BestItems items={bestItems} />
     </div>
   )
