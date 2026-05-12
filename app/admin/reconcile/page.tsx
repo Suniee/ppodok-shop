@@ -1,5 +1,5 @@
 import { fetchTossTransactions } from "@/lib/toss"
-import { fetchPaymentsByDateRange, fetchDonePaymentsTotalByDateRange } from "@/lib/supabase/payments"
+import { fetchPaymentsByDateRange, fetchAllDonePaymentsTotal } from "@/lib/supabase/payments"
 import ReconcileClient from "./ReconcileClient"
 
 interface Props {
@@ -23,7 +23,7 @@ export default async function ReconcilePage({ searchParams }: Props) {
     const [tossTransactions, dbPayments, dbDoneTotal] = await Promise.all([
         fetchTossTransactions(startIso, endIso).catch(() => []),
         fetchPaymentsByDateRange(startIso, `${range.end}T23:59:59+09:00`),
-        fetchDonePaymentsTotalByDateRange(startIso, `${range.end}T23:59:59+09:00`),
+        fetchAllDonePaymentsTotal(),
     ])
 
     // Toss: paymentKey별 가장 최근 트랜잭션 상태가 DONE인 건만 합산

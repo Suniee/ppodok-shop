@@ -229,7 +229,7 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
                 <SummaryCard
                     label="DB 완료 금액"
                     value={`${(dbApprovedTotal / 10000).toLocaleString()}만원`}
-                    sub={`${dbApprovedCount}건 (승인 기준)`}
+                    sub={`${dbApprovedCount}건 (전체 누적)`}
                     color="#00A878" icon={TrendingUp}
                 />
                 <SummaryCard
