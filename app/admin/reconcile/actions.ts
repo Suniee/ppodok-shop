@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { fetchTossPayment, fetchTossTransactions, cancelTossPayment } from "@/lib/toss"
 import { savePayment } from "@/lib/supabase/payments"
-import { saveTossTransactions } from "@/lib/supabase/toss_transactions"
+import { saveTossTransactions, deleteTossTransactionsByDateRange } from "@/lib/supabase/toss_transactions"
 import { updateOrderStatus } from "@/lib/supabase/orders"
 import { createAdminClient } from "@/lib/supabase/admin"
 
@@ -15,10 +15,14 @@ export async function receiveTossDataAction(
     try {
         const startIso = `${start}T00:00:00`
         const endIso   = `${end}T23:59:59`
+
+        // 기존 데이터 삭제 후 Toss API 재조회
+        await deleteTossTransactionsByDateRange(startIso, endIso)
+
         const transactions = await fetchTossTransactions(startIso, endIso)
 
         if (transactions.length === 0) {
-            return { saved: 0, errors: [], message: "조회된 거래내역이 없습니다." }
+            return { saved: 0, errors: [], message: `${start} ~ ${end} · 조회된 거래내역이 없습니다.` }
         }
 
         const result = await saveTossTransactions(transactions)

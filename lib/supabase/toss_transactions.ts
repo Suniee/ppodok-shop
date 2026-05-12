@@ -6,6 +6,19 @@ export type StoredTossTransaction = TossTransaction & {
     createdAt: string
 }
 
+// 특정 날짜 범위의 기존 데이터 삭제 (transaction_at 기준)
+export async function deleteTossTransactionsByDateRange(
+    startIso: string,
+    endIso: string,
+): Promise<void> {
+    const admin = createAdminClient()
+    await admin
+        .from("toss_transactions")
+        .delete()
+        .gte("transaction_at", startIso)
+        .lte("transaction_at", endIso)
+}
+
 // Toss 거래내역을 toss_transactions 테이블에 배치 upsert (transaction_key 기준 중복 방지)
 export async function saveTossTransactions(
     transactions: TossTransaction[]
