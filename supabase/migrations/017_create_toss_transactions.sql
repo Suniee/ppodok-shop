@@ -6,7 +6,6 @@ CREATE TABLE public.toss_transactions (
     transaction_key TEXT        NOT NULL UNIQUE,  -- 토스 transactionKey (중복 방지)
     payment_key     TEXT        NOT NULL,
     order_id        TEXT        NOT NULL,
-    order_name      TEXT        NOT NULL,
     method          TEXT        NOT NULL,
     amount          INTEGER     NOT NULL,
     status          TEXT        NOT NULL,         -- DONE | CANCELED | PARTIAL_CANCELED 등

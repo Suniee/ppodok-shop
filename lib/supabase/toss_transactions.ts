@@ -17,9 +17,8 @@ export async function saveTossTransactions(
     const rows = transactions.map((t) => ({
         transaction_key: t.transactionKey,
         payment_key:     t.paymentKey,
-        order_id:        t.orderId     ?? "",
-        order_name:      t.orderName   ?? "",
-        method:          t.method      ?? "",
+        order_id:        t.orderId  ?? "",
+        method:          t.method   ?? "",
         amount:          t.amount      ?? 0,
         status:          t.status      ?? "",
         transaction_at:  t.transactionAt,
