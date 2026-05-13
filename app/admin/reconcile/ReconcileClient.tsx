@@ -139,7 +139,15 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
     // Toss와 DB를 paymentKey 기준으로 대사
     const rows = useMemo<ReconcileRow[]>(() => {
         const dbMap = new Map(dbPayments.map((p) => [p.paymentKey, p]))
-        const tossMap = new Map(tossTransactions.map((t) => [t.paymentKey, t]))
+
+        // 동일 paymentKey에 여러 트랜잭션(승인+취소 등)이 있을 수 있으므로 최신 것만 사용
+        const tossMap = new Map<string, typeof tossTransactions[number]>()
+        for (const t of tossTransactions) {
+            const cur = tossMap.get(t.paymentKey)
+            if (!cur || t.transactionAt > cur.transactionAt) {
+                tossMap.set(t.paymentKey, t)
+            }
+        }
         const keys = new Set([...dbMap.keys(), ...tossMap.keys()])
 
         return Array.from(keys).map((key) => {

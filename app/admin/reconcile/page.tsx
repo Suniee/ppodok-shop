@@ -16,13 +16,14 @@ export default async function ReconcilePage({ searchParams }: Props) {
     const { start, end } = await searchParams
     const range = (start && end) ? { start, end } : todayRange()
 
-    const startIso = `${range.start}T00:00:00`
-    const endIso   = `${range.end}T23:59:59`
+    // KST 기준 날짜 범위 (DB TIMESTAMPTZ 비교 시 timezone 명시)
+    const startIso = `${range.start}T00:00:00+09:00`
+    const endIso   = `${range.end}T23:59:59+09:00`
 
     // toss_transactions DB, payments DB, 완료 합계를 병렬 조회
     const [tossTransactions, dbPayments, dbDoneTotal] = await Promise.all([
         fetchStoredTossTransactions(startIso, endIso),
-        fetchPaymentsByDateRange(startIso, `${range.end}T23:59:59+09:00`),
+        fetchPaymentsByDateRange(startIso, endIso),
         fetchAllDonePaymentsTotal(),
     ])
 

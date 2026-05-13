@@ -13,8 +13,8 @@ export async function receiveTossDataAction(
     end: string,
 ): Promise<{ saved: number; errors: string[]; message: string }> {
     try {
-        const startIso = `${start}T00:00:00`
-        const endIso   = `${end}T23:59:59`
+        const startIso = `${start}T00:00:00+09:00`
+        const endIso   = `${end}T23:59:59+09:00`
 
         // 기존 데이터 삭제 후 Toss API 재조회
         await deleteTossTransactionsByDateRange(startIso, endIso)
