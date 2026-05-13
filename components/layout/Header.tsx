@@ -167,6 +167,14 @@ export default function Header() {
                 </span>
               )}
             </button>
+            <a
+              data-ui-id="btn-header-orders"
+              href="/orders"
+              className="p-2.5 rounded-xl transition-colors hover:bg-gray-50"
+              style={{ color: "var(--toss-text-secondary)" }}
+            >
+              <Package className="size-5" />
+            </a>
             {userId ? (
               <div data-ui-id="menu-header-user" className="relative ml-2" ref={userMenuRef}>
                 <button
@@ -193,16 +201,6 @@ export default function Header() {
                     >
                       <User className="size-4" style={{ color: "var(--toss-text-tertiary)" }} />
                       내 계정
-                    </a>
-                    <a
-                      data-ui-id="link-user-menu-orders"
-                      href="/orders"
-                      className="flex items-center gap-2.5 px-4 py-3 text-sm transition-colors hover:bg-gray-50"
-                      style={{ color: "var(--toss-text-primary)" }}
-                      onClick={() => setUserMenuOpen(false)}
-                    >
-                      <Package className="size-4" style={{ color: "var(--toss-text-tertiary)" }} />
-                      주문/취소 내역
                     </a>
                     <div style={{ height: "1px", backgroundColor: "var(--toss-border)" }} />
                     <button

@@ -24,6 +24,28 @@ type ReconcileRow = {
     match:       MatchStatus
 }
 
+function toKSTDateString(date: Date): string {
+    return new Date(date.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
+}
+
+function getPresetRange(preset: "today" | "7d" | "1month" | "3month"): { start: string; end: string } {
+    const now = new Date()
+    const end = toKSTDateString(now)
+    if (preset === "today") return { start: end, end }
+    const from = new Date(now)
+    if (preset === "7d")     from.setDate(from.getDate() - 6)
+    if (preset === "1month") from.setMonth(from.getMonth() - 1)
+    if (preset === "3month") from.setMonth(from.getMonth() - 3)
+    return { start: toKSTDateString(from), end }
+}
+
+const PRESETS: { key: "today" | "7d" | "1month" | "3month"; label: string }[] = [
+    { key: "today",  label: "오늘" },
+    { key: "7d",     label: "7일" },
+    { key: "1month", label: "1개월" },
+    { key: "3month", label: "3개월" },
+]
+
 const PAYMENT_STATUS_META: Record<string, { label: string; bg: string; color: string }> = {
     DONE:                { label: "완료",     bg: "#E8F8F5", color: "#00A878" },
     CANCELED:            { label: "취소",     bg: "#FFF0F0", color: "#FF4E4E" },
@@ -45,10 +67,10 @@ function StatusBadge({ status }: { status: string | null }) {
 }
 
 const MATCH_META: Record<MatchStatus, { label: string; bg: string; color: string; icon: React.ElementType }> = {
-    matched:   { label: "일치",     bg: "#E8F8F5", color: "#00A878", icon: CheckCircle2 },
+    matched:   { label: "일치",       bg: "#E8F8F5", color: "#00A878", icon: CheckCircle2 },
     mismatch:  { label: "금액 불일치", bg: "#FFF8E1", color: "#FFB800", icon: AlertTriangle },
-    toss_only: { label: "DB 미저장", bg: "#FFF0F0", color: "#FF4E4E", icon: XCircle },
-    db_only:   { label: "Toss 없음", bg: "#F3E8FF", color: "#9333EA", icon: AlertTriangle },
+    toss_only: { label: "DB 미저장",  bg: "#FFF0F0", color: "#FF4E4E", icon: XCircle },
+    db_only:   { label: "Toss 없음",  bg: "#F3E8FF", color: "#9333EA", icon: AlertTriangle },
 }
 
 function formatDateTime(iso: string | null) {
@@ -136,6 +158,25 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
         })
     }
 
+    // 서버에서 새 기간 데이터를 가져오기 위해 URL을 갱신
+    const handleSearch = () => {
+        router.push(`/admin/reconcile?start=${start}&end=${end}`)
+    }
+
+    const handleReset = () => {
+        const range = getPresetRange("1month")
+        setStart(range.start)
+        setEnd(range.end)
+        router.push(`/admin/reconcile?start=${range.start}&end=${range.end}`)
+    }
+
+    const applyPreset = (preset: "today" | "7d" | "1month" | "3month") => {
+        const range = getPresetRange(preset)
+        setStart(range.start)
+        setEnd(range.end)
+        router.push(`/admin/reconcile?start=${range.start}&end=${range.end}`)
+    }
+
     // Toss와 DB를 paymentKey 기준으로 대사
     const rows = useMemo<ReconcileRow[]>(() => {
         const dbMap = new Map(dbPayments.map((p) => [p.paymentKey, p]))
@@ -202,10 +243,6 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
 
     const diff = tossApprovedTotal - dbApprovedTotal
 
-    const handleSearch = () => {
-        router.push(`/admin/reconcile?start=${start}&end=${end}`)
-    }
-
     const tabs: { key: MatchStatus | "all"; label: string }[] = [
         { key: "all",       label: `전체 ${counts.all}` },
         { key: "matched",   label: `일치 ${counts.matched}` },
@@ -216,7 +253,7 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
 
     return (
         <div data-ui-id="page-admin-reconcile" className="p-7 space-y-6">
-            {/* 헤더 */}
+            {/* 헤더: 데이터수신 버튼만 유지, 날짜 필터는 테이블 카드 내로 이동 */}
             <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
                     <h1 className="text-xl font-black" style={{ color: "var(--toss-text-primary)", letterSpacing: "-0.03em" }}>
@@ -226,44 +263,16 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
                         토스 거래내역 API ↔ DB 결제 테이블 비교
                     </p>
                 </div>
-
-                {/* 날짜 범위 조회 */}
-                <div className="flex items-center gap-2 flex-wrap">
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white"
-                        style={{ border: "1px solid var(--toss-border)" }}>
-                        <input
-                            type="date" value={start} max={end}
-                            onChange={(e) => setStart(e.target.value)}
-                            className="text-sm outline-none bg-transparent"
-                            style={{ color: "var(--toss-text-primary)" }}
-                        />
-                        <span className="text-xs" style={{ color: "var(--toss-text-tertiary)" }}>~</span>
-                        <input
-                            type="date" value={end} min={start}
-                            onChange={(e) => setEnd(e.target.value)}
-                            className="text-sm outline-none bg-transparent"
-                            style={{ color: "var(--toss-text-primary)" }}
-                        />
-                    </div>
-                    <button
-                        onClick={handleSearch}
-                        className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-85"
-                        style={{ backgroundColor: "var(--toss-blue)" }}
-                    >
-                        <Search className="size-3.5" />
-                        조회
-                    </button>
-                    <button
-                        onClick={handleReceive}
-                        disabled={isReceiving}
-                        className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-85 disabled:opacity-40"
-                        style={{ backgroundColor: "#E8F8F5", color: "#00A878", border: "1px solid #B2EFE1" }}
-                        title={`${start} ~ ${end} 기간 Toss 거래내역 수신`}
-                    >
-                        <Download className={`size-3.5 ${isReceiving ? "animate-bounce" : ""}`} />
-                        {isReceiving ? "수신 중…" : "데이터수신"}
-                    </button>
-                </div>
+                <button
+                    onClick={handleReceive}
+                    disabled={isReceiving}
+                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-85 disabled:opacity-40"
+                    style={{ backgroundColor: "#E8F8F5", color: "#00A878", border: "1px solid #B2EFE1" }}
+                    title={`${start} ~ ${end} 기간 Toss 거래내역 수신`}
+                >
+                    <Download className={`size-3.5 ${isReceiving ? "animate-bounce" : ""}`} />
+                    {isReceiving ? "수신 중…" : "데이터수신"}
+                </button>
             </div>
 
             {/* 데이터수신 결과 배너 */}
@@ -327,38 +336,101 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
                 />
             </div>
 
-            {/* 탭 + 검색 + 테이블 */}
+            {/* 대사 테이블 */}
             <div className="bg-white rounded-2xl overflow-hidden" style={{ border: "1px solid var(--toss-border)" }}>
-                <div className="px-5 pt-4 pb-0 flex items-center justify-between gap-4 flex-wrap">
-                    {/* 탭 */}
-                    <div className="flex gap-0.5 overflow-x-auto scrollbar-hide pb-0.5">
-                        {tabs.map((t) => (
+                {/* Row 1: 조회 조건 */}
+                <div className="px-5 py-3 flex items-center gap-3 flex-wrap"
+                    style={{ borderBottom: "1px solid var(--toss-border)" }}>
+                    <span className="text-xs font-semibold flex-shrink-0"
+                        style={{ color: "var(--toss-text-secondary)" }}>
+                        조회기간
+                    </span>
+                    <div className="flex gap-1">
+                        {PRESETS.map((p) => (
                             <button
-                                key={t.key}
-                                onClick={() => setTab(t.key)}
-                                className="flex-shrink-0 px-3.5 py-2 text-xs font-semibold rounded-xl transition-colors"
+                                key={p.key}
+                                onClick={() => applyPreset(p.key)}
+                                className="px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors"
                                 style={{
-                                    backgroundColor: tab === t.key ? "var(--toss-blue)" : "transparent",
-                                    color: tab === t.key ? "#fff" : "var(--toss-text-secondary)",
+                                    backgroundColor: "var(--toss-page-bg)",
+                                    color: "var(--toss-text-secondary)",
+                                    border: "1px solid var(--toss-border)",
                                 }}
                             >
-                                {t.label}
+                                {p.label}
                             </button>
                         ))}
                     </div>
-                    {/* 검색 */}
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl mb-1"
-                        style={{ backgroundColor: "var(--toss-page-bg)", border: "1px solid var(--toss-border)", minWidth: 220 }}>
+                    <div className="h-4 w-px flex-shrink-0" style={{ backgroundColor: "var(--toss-border)" }} />
+                    <div className="flex items-center gap-1.5">
+                        <input
+                            type="date"
+                            value={start}
+                            max={end}
+                            onChange={(e) => setStart(e.target.value)}
+                            className="text-xs outline-none bg-transparent"
+                            style={{ color: "var(--toss-text-primary)" }}
+                        />
+                        <span className="text-xs" style={{ color: "var(--toss-text-tertiary)" }}>~</span>
+                        <input
+                            type="date"
+                            value={end}
+                            min={start}
+                            onChange={(e) => setEnd(e.target.value)}
+                            className="text-xs outline-none bg-transparent"
+                            style={{ color: "var(--toss-text-primary)" }}
+                        />
+                    </div>
+                    <div className="h-4 w-px flex-shrink-0" style={{ backgroundColor: "var(--toss-border)" }} />
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl flex-1 min-w-[180px]"
+                        style={{ backgroundColor: "var(--toss-page-bg)", border: "1px solid var(--toss-border)" }}>
                         <Search className="size-3.5 flex-shrink-0" style={{ color: "var(--toss-text-tertiary)" }} />
                         <input
-                            type="text" value={search}
+                            type="text"
+                            value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="paymentKey, 주문번호, 주문명 검색"
                             className="bg-transparent text-xs outline-none flex-1"
                             style={{ color: "var(--toss-text-primary)" }}
                         />
                     </div>
+                    <button
+                        onClick={handleSearch}
+                        className="flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white transition-opacity hover:opacity-85"
+                        style={{ backgroundColor: "var(--toss-blue)" }}
+                    >
+                        조회
+                    </button>
+                    <button
+                        onClick={handleReset}
+                        className="flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-colors"
+                        style={{
+                            backgroundColor: "var(--toss-page-bg)",
+                            color: "var(--toss-text-secondary)",
+                            border: "1px solid var(--toss-border)",
+                        }}
+                    >
+                        초기화
+                    </button>
                 </div>
+
+                {/* Row 2: 탭 */}
+                <div className="px-5 pt-3 pb-3 flex items-center gap-2 flex-wrap overflow-x-auto scrollbar-hide">
+                    {tabs.map((t) => (
+                        <button
+                            key={t.key}
+                            onClick={() => setTab(t.key)}
+                            className="flex-shrink-0 px-3.5 py-2 text-xs font-semibold rounded-xl transition-colors"
+                            style={{
+                                backgroundColor: tab === t.key ? "var(--toss-blue)" : "transparent",
+                                color: tab === t.key ? "#fff" : "var(--toss-text-secondary)",
+                            }}
+                        >
+                            {t.label}
+                        </button>
+                    ))}
+                </div>
+                <div style={{ borderTop: "1px solid var(--toss-border)" }} />
 
                 <div className="overflow-x-auto scrollbar-hide">
                     {filtered.length === 0 ? (
@@ -369,7 +441,7 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
                     ) : (
                         <table className="w-full">
                             <thead>
-                                <tr style={{ borderTop: "1px solid var(--toss-border)", borderBottom: "1px solid var(--toss-border)" }}>
+                                <tr style={{ borderBottom: "1px solid var(--toss-border)" }}>
                                     {["상태", "승인 시각", "주문번호", "주문명", "Toss 금액", "DB 금액", "Toss 상태", "paymentKey", "액션"].map((h) => (
                                         <th key={h}
                                             className="px-4 py-3 text-left text-[11px] font-semibold whitespace-nowrap"

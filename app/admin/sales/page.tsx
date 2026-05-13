@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import SalesClient from "./SalesClient"
 import { fetchAllOrdersForAdmin } from "@/lib/supabase/orders"
 import { fetchAllDonePaymentsTotal } from "@/lib/supabase/payments"
@@ -8,10 +9,12 @@ export default async function SalesPage() {
         fetchAllDonePaymentsTotal(),
     ])
     return (
-        <SalesClient
-            orders={orders}
-            totalRevenue={donePayments.total}
-            totalRevenueCount={donePayments.count}
-        />
+        <Suspense>
+            <SalesClient
+                orders={orders}
+                totalRevenue={donePayments.total}
+                totalRevenueCount={donePayments.count}
+            />
+        </Suspense>
     )
 }

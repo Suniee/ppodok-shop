@@ -7,12 +7,29 @@ import {
     TrendingUp, Search, ExternalLink, RefreshCw,
 } from "lucide-react"
 import { syncMissingPaymentsAction } from "./actions"
-
-function todayYmd() {
-    const kst = new Date(Date.now() + 9 * 60 * 60 * 1000)
-    return kst.toISOString().slice(0, 10)
-}
 import type { AdminPayment } from "@/lib/supabase/payments"
+
+function toKSTDateString(date: Date): string {
+    return new Date(date.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
+}
+
+function getPresetRange(preset: "today" | "7d" | "1month" | "3month"): { start: string; end: string } {
+    const now = new Date()
+    const end = toKSTDateString(now)
+    if (preset === "today") return { start: end, end }
+    const from = new Date(now)
+    if (preset === "7d")     from.setDate(from.getDate() - 6)
+    if (preset === "1month") from.setMonth(from.getMonth() - 1)
+    if (preset === "3month") from.setMonth(from.getMonth() - 3)
+    return { start: toKSTDateString(from), end }
+}
+
+const PRESETS: { key: "today" | "7d" | "1month" | "3month"; label: string }[] = [
+    { key: "today",  label: "오늘" },
+    { key: "7d",     label: "7일" },
+    { key: "1month", label: "1개월" },
+    { key: "3month", label: "3개월" },
+]
 
 const STATUS_META: Record<string, { label: string; bg: string; color: string; icon: React.ElementType }> = {
     DONE:                { label: "결제 완료", bg: "#E8F8F5", color: "#00A878", icon: CheckCircle2 },
@@ -55,12 +72,14 @@ function SummaryCard({
 
 export default function PaymentsClient({ payments }: { payments: AdminPayment[] }) {
     const router = useRouter()
-    const today = todayYmd()
-    const [start,  setStart]  = useState(today)
-    const [end,    setEnd]    = useState(today)
-    const [search, setSearch] = useState("")
-    const [isSyncing, startSync] = useTransition()
-    const [syncResult, setSyncResult] = useState<{ synced: number; skipped: number; errors: string[] } | null>(null)
+    const defaultRange = getPresetRange("1month")
+    const [inputStart,  setInputStart]  = useState(defaultRange.start)
+    const [inputEnd,    setInputEnd]    = useState(defaultRange.end)
+    const [activeStart, setActiveStart] = useState<string | null>(defaultRange.start)
+    const [activeEnd,   setActiveEnd]   = useState<string | null>(defaultRange.end)
+    const [search,      setSearch]      = useState("")
+    const [isSyncing,   startSync]      = useTransition()
+    const [syncResult,  setSyncResult]  = useState<{ synced: number; skipped: number; errors: string[] } | null>(null)
 
     const handleSync = () => {
         startSync(async () => {
@@ -70,10 +89,35 @@ export default function PaymentsClient({ payments }: { payments: AdminPayment[] 
         })
     }
 
-    // 날짜 범위 + 검색어 필터 (approvedAt 기준, 없으면 createdAt)
+    const handleFetch = () => {
+        setActiveStart(inputStart)
+        setActiveEnd(inputEnd)
+    }
+
+    // 초기화: 날짜 필터 해제 → 전체 기간 표시
+    const handleReset = () => {
+        const range = getPresetRange("1month")
+        setInputStart(range.start)
+        setInputEnd(range.end)
+        setActiveStart(null)
+        setActiveEnd(null)
+    }
+
+    const applyPreset = (preset: "today" | "7d" | "1month" | "3month") => {
+        const range = getPresetRange(preset)
+        setInputStart(range.start)
+        setInputEnd(range.end)
+        setActiveStart(range.start)
+        setActiveEnd(range.end)
+    }
+
+    // activeStart/End가 설정된 경우(날짜 필터 활성)에만 초기화 버튼 표시
+    const showReset = activeStart !== null || activeEnd !== null
+
+    // approvedAt 기준 날짜 필터링, 없으면 createdAt
     const filtered = useMemo(() => {
-        const startMs = new Date(start + "T00:00:00+09:00").getTime()
-        const endMs   = new Date(end   + "T23:59:59+09:00").getTime()
+        const startMs = activeStart ? new Date(activeStart + "T00:00:00+09:00").getTime() : 0
+        const endMs   = activeEnd   ? new Date(activeEnd   + "T23:59:59+09:00").getTime() : Infinity
         const q = search.trim().toLowerCase()
         return payments.filter((p) => {
             const dateStr = p.approvedAt ?? p.createdAt
@@ -84,7 +128,7 @@ export default function PaymentsClient({ payments }: { payments: AdminPayment[] 
                 || p.orderName.toLowerCase().includes(q)
                 || p.paymentKey.toLowerCase().includes(q)
         })
-    }, [payments, start, end, search])
+    }, [payments, activeStart, activeEnd, search])
 
     const doneList      = filtered.filter((p) => p.status === "DONE")
     const cancelledList = filtered.filter((p) => p.status.includes("CANCELED"))
@@ -102,46 +146,21 @@ export default function PaymentsClient({ payments }: { payments: AdminPayment[] 
                         {filtered.length}건 표시 중 (전체 {payments.length}건)
                     </p>
                 </div>
-
-                <div className="flex items-center gap-2 flex-wrap">
-                    {/* 날짜 범위 필터 */}
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white"
-                        style={{ border: "1px solid var(--toss-border)" }}>
-                        <input
-                            type="date"
-                            value={start}
-                            max={end}
-                            onChange={(e) => setStart(e.target.value)}
-                            className="text-sm outline-none bg-transparent"
-                            style={{ color: "var(--toss-text-primary)" }}
-                        />
-                        <span className="text-xs" style={{ color: "var(--toss-text-tertiary)" }}>~</span>
-                        <input
-                            type="date"
-                            value={end}
-                            min={start}
-                            onChange={(e) => setEnd(e.target.value)}
-                            className="text-sm outline-none bg-transparent"
-                            style={{ color: "var(--toss-text-primary)" }}
-                        />
-                    </div>
-
-                    {/* 누락 결제 동기화 버튼 */}
-                    <button
-                        onClick={handleSync}
-                        disabled={isSyncing}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors"
-                        style={{
-                            backgroundColor: isSyncing ? "var(--toss-page-bg)" : "var(--toss-blue)",
-                            color: isSyncing ? "var(--toss-text-tertiary)" : "#fff",
-                            border: "1px solid var(--toss-border)",
-                        }}
-                        title="payments 테이블에 없는 완료 주문을 Toss API로 역조회해 저장합니다"
-                    >
-                        <RefreshCw className={`size-3.5 ${isSyncing ? "animate-spin" : ""}`} />
-                        {isSyncing ? "동기화 중…" : "누락 결제 동기화"}
-                    </button>
-                </div>
+                {/* 누락 결제 동기화는 헤더에 유지 */}
+                <button
+                    onClick={handleSync}
+                    disabled={isSyncing}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors"
+                    style={{
+                        backgroundColor: isSyncing ? "var(--toss-page-bg)" : "var(--toss-blue)",
+                        color: isSyncing ? "var(--toss-text-tertiary)" : "#fff",
+                        border: "1px solid var(--toss-border)",
+                    }}
+                    title="payments 테이블에 없는 완료 주문을 Toss API로 역조회해 저장합니다"
+                >
+                    <RefreshCw className={`size-3.5 ${isSyncing ? "animate-spin" : ""}`} />
+                    {isSyncing ? "동기화 중…" : "누락 결제 동기화"}
+                </button>
             </div>
 
             {/* 동기화 결과 토스트 */}
@@ -188,15 +207,54 @@ export default function PaymentsClient({ payments }: { payments: AdminPayment[] 
                 />
             </div>
 
-            {/* 검색 + 테이블 */}
+            {/* 거래 목록 테이블 */}
             <div className="bg-white rounded-2xl overflow-hidden" style={{ border: "1px solid var(--toss-border)" }}>
-                <div className="px-5 py-4 flex items-center justify-between gap-3"
+                {/* Row 1: 조회 조건 */}
+                <div className="px-5 py-3 flex items-center gap-3 flex-wrap"
                     style={{ borderBottom: "1px solid var(--toss-border)" }}>
-                    <p className="text-sm font-bold" style={{ color: "var(--toss-text-primary)" }}>
-                        거래 목록
-                    </p>
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl"
-                        style={{ backgroundColor: "var(--toss-page-bg)", border: "1px solid var(--toss-border)", minWidth: 220 }}>
+                    <span className="text-xs font-semibold flex-shrink-0"
+                        style={{ color: "var(--toss-text-secondary)" }}>
+                        조회기간
+                    </span>
+                    <div className="flex gap-1">
+                        {PRESETS.map((p) => (
+                            <button
+                                key={p.key}
+                                onClick={() => applyPreset(p.key)}
+                                className="px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors"
+                                style={{
+                                    backgroundColor: "var(--toss-page-bg)",
+                                    color: "var(--toss-text-secondary)",
+                                    border: "1px solid var(--toss-border)",
+                                }}
+                            >
+                                {p.label}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="h-4 w-px flex-shrink-0" style={{ backgroundColor: "var(--toss-border)" }} />
+                    <div className="flex items-center gap-1.5">
+                        <input
+                            type="date"
+                            value={inputStart}
+                            max={inputEnd}
+                            onChange={(e) => setInputStart(e.target.value)}
+                            className="text-xs outline-none bg-transparent"
+                            style={{ color: "var(--toss-text-primary)" }}
+                        />
+                        <span className="text-xs" style={{ color: "var(--toss-text-tertiary)" }}>~</span>
+                        <input
+                            type="date"
+                            value={inputEnd}
+                            min={inputStart}
+                            onChange={(e) => setInputEnd(e.target.value)}
+                            className="text-xs outline-none bg-transparent"
+                            style={{ color: "var(--toss-text-primary)" }}
+                        />
+                    </div>
+                    <div className="h-4 w-px flex-shrink-0" style={{ backgroundColor: "var(--toss-border)" }} />
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl flex-1 min-w-[180px]"
+                        style={{ backgroundColor: "var(--toss-page-bg)", border: "1px solid var(--toss-border)" }}>
                         <Search className="size-3.5 flex-shrink-0" style={{ color: "var(--toss-text-tertiary)" }} />
                         <input
                             type="text"
@@ -207,6 +265,26 @@ export default function PaymentsClient({ payments }: { payments: AdminPayment[] 
                             style={{ color: "var(--toss-text-primary)" }}
                         />
                     </div>
+                    <button
+                        onClick={handleFetch}
+                        className="flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white transition-opacity hover:opacity-85"
+                        style={{ backgroundColor: "var(--toss-blue)" }}
+                    >
+                        조회
+                    </button>
+                    {showReset && (
+                        <button
+                            onClick={handleReset}
+                            className="flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-colors"
+                            style={{
+                                backgroundColor: "var(--toss-page-bg)",
+                                color: "var(--toss-text-secondary)",
+                                border: "1px solid var(--toss-border)",
+                            }}
+                        >
+                            초기화
+                        </button>
+                    )}
                 </div>
 
                 <div className="overflow-x-auto scrollbar-hide">
@@ -246,13 +324,13 @@ export default function PaymentsClient({ payments }: { payments: AdminPayment[] 
                                                 </span>
                                             </td>
 
-                                            {/* 주문번호 → 매출관리 링크 */}
+                                            {/* 주문번호 → 주문조회 링크 */}
                                             <td className="px-4 py-3">
                                                 <a
                                                     href={`/admin/sales?search=${p.orderId.slice(0, 8)}`}
                                                     className="flex items-center gap-1 font-mono text-xs font-semibold hover:underline"
                                                     style={{ color: "var(--toss-blue)" }}
-                                                    title="매출 관리에서 보기"
+                                                    title="주문 조회에서 보기"
                                                 >
                                                     {p.orderId.slice(0, 8).toUpperCase()}
                                                     <ExternalLink className="size-2.5 opacity-60" />

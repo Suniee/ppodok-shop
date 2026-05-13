@@ -1,4 +1,10 @@
 import { createAdminClient } from "./admin"
+import type { CancelRequestType, CancelRequestStatus } from "./cancelRequests"
+
+export type OrderCancelRequest = {
+    type:   CancelRequestType
+    status: CancelRequestStatus
+}
 
 export type OrderStatus = "pending" | "confirmed" | "shipping" | "delivered" | "purchase_confirmed" | "review_written" | "cancelled"
 
@@ -51,15 +57,24 @@ export type AdminOrder = {
     totalPrice: number
     paymentMethod: string
     createdAt: string
+    cancelRequest: OrderCancelRequest | null  // 가장 최근 교환/환불 신청 (pending 우선)
 }
 
-export async function fetchAllOrdersForAdmin(): Promise<AdminOrder[]> {
+export async function fetchAllOrdersForAdmin(
+    startDate?: string,  // "YYYY-MM-DD" — 포함
+    endDate?:   string,  // "YYYY-MM-DD" — 포함 (해당 일 자정까지)
+): Promise<AdminOrder[]> {
     const admin = createAdminClient()
-    const { data, error } = await admin
+    let query = admin
         .from("orders")
-        .select("*, order_items(product_name)")
+        .select("*, order_items(product_name), cancel_requests(type, status, created_at)")
         .order("created_at", { ascending: false })
-        .limit(500)
+        .limit(1000)
+
+    if (startDate) query = query.gte("created_at", `${startDate}T00:00:00+09:00`)
+    if (endDate)   query = query.lte("created_at", `${endDate}T23:59:59+09:00`)
+
+    const { data, error } = await query
 
     if (error || !data) return []
 
@@ -69,6 +84,14 @@ export async function fetchAllOrdersForAdmin(): Promise<AdminOrder[]> {
         const itemsSummary = items.length > 1
             ? `${firstName} 외 ${items.length - 1}개`
             : firstName
+
+        // pending 신청을 우선하고, 없으면 가장 최근 신청을 표시
+        const cancelRows = (row.cancel_requests as { type: string; status: string; created_at: string }[]) ?? []
+        const pending = cancelRows.find((r) => r.status === "pending")
+        const latest  = cancelRows.sort((a, b) => b.created_at.localeCompare(a.created_at))[0]
+        const cancelRequest = (pending ?? latest)
+            ? { type: (pending ?? latest)!.type as CancelRequestType, status: (pending ?? latest)!.status as CancelRequestStatus }
+            : null
 
         return {
             id:            row.id as string,
@@ -81,6 +104,7 @@ export async function fetchAllOrdersForAdmin(): Promise<AdminOrder[]> {
             totalPrice:    row.total_price as number,
             paymentMethod: row.payment_method as string,
             createdAt:     row.created_at as string,
+            cancelRequest,
         }
     })
 }

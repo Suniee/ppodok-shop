@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { fetchCancelRequestsByOrderIds } from "@/lib/supabase/cancelRequests"
 import type { Order, OrderStatus } from "@/lib/supabase/orders"
+import type { CancelRequest } from "@/lib/supabase/cancelRequests"
 import OrdersClient from "./OrdersClient"
 
 // 서버 전용 — next/headers 의존성이 있어 orders.ts에 두지 않음
@@ -48,6 +50,12 @@ export default async function OrdersPage() {
 
     const orders = await fetchMyOrders()
 
+    // 교환/환불 신청 이력이 있을 수 있는 모든 주문 대상으로 조회
+    // (cancelled 포함 — 환불 승인 후 취소된 주문도 이력 표시)
+    const allOrderIds = orders.map((o) => o.id)
+    const cancelRequests: Record<string, CancelRequest[]> =
+        await fetchCancelRequestsByOrderIds(allOrderIds)
+
     return (
         <div className="max-w-xl mx-auto px-5 py-10">
             <div className="mb-8">
@@ -55,14 +63,14 @@ export default async function OrdersPage() {
                     className="text-2xl font-black"
                     style={{ color: "var(--toss-text-primary)", letterSpacing: "-0.03em" }}
                 >
-                    주문/취소 내역
+                    주문/배송
                 </h1>
                 <p className="text-sm mt-1" style={{ color: "var(--toss-text-secondary)" }}>
                     총 {orders.filter((o) => o.status !== "pending").length}건의 주문
                 </p>
             </div>
 
-            <OrdersClient orders={orders} />
+            <OrdersClient orders={orders} cancelRequests={cancelRequests} />
         </div>
     )
 }

@@ -1,9 +1,11 @@
 "use client"
 
-import { useState, useTransition, useMemo } from "react"
-import { Search, TrendingUp, ShoppingCart, Package, Truck, CheckCircle2, XCircle, Clock, BadgeCheck, PenLine } from "lucide-react"
-import { updateOrderStatusAction } from "./actions"
+import { useState, useTransition, useMemo, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
+import { Search, TrendingUp, ShoppingCart, Package, Truck, CheckCircle2, XCircle, Clock, BadgeCheck, PenLine, ArrowLeftRight, Undo2, CalendarDays } from "lucide-react"
+import { updateOrderStatusAction, fetchOrdersAction } from "./actions"
 import type { AdminOrder, OrderStatus } from "@/lib/supabase/orders"
+import type { CancelRequestType, CancelRequestStatus } from "@/lib/supabase/cancelRequests"
 
 const STATUS_META: Record<OrderStatus, { label: string; bg: string; color: string; icon: React.ElementType }> = {
     pending:   { label: "결제 대기", bg: "#FFF8E1", color: "#FFB800", icon: Clock },
@@ -25,9 +27,39 @@ const PAYMENT_LABEL: Record<string, string> = {
 
 const STATUS_FLOW: OrderStatus[] = ["pending", "confirmed", "shipping", "delivered", "purchase_confirmed", "review_written", "cancelled"]
 
+const CANCEL_REQUEST_META: Record<CancelRequestType, { label: string; bg: string; color: string; icon: React.ElementType }> = {
+    exchange: { label: "교환 신청", bg: "#F3E8FF", color: "#9333EA", icon: ArrowLeftRight },
+    refund:   { label: "환불 신청", bg: "#EBF3FF", color: "#0064FF", icon: Undo2 },
+}
+
+const CANCEL_REQUEST_STATUS_STYLE: Record<CancelRequestStatus, { suffix: string; bg: string; color: string }> = {
+    pending:  { suffix: "대기",   bg: "#FFF8E1", color: "#B07D00" },
+    approved: { suffix: "승인",   bg: "#ECFDF5", color: "#059669" },
+    rejected: { suffix: "거절",   bg: "#FFF0F0", color: "#FF4E4E" },
+}
+
 function formatDate(iso: string) {
     const d = new Date(iso)
     return d.toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
+}
+
+// KST 기준 "YYYY-MM-DD" 반환
+function toKSTDateString(date: Date): string {
+    return date.toLocaleDateString("ko-KR", {
+        timeZone: "Asia/Seoul",
+        year: "numeric", month: "2-digit", day: "2-digit",
+    }).replace(/\. /g, "-").replace(/\.$/, "").replace(/ /g, "")
+}
+
+function getPresetRange(preset: "today" | "7d" | "1m" | "3m"): { start: string; end: string } {
+    const now = new Date()
+    const end = toKSTDateString(now)
+    if (preset === "today") return { start: end, end }
+    const start = new Date(now)
+    if (preset === "7d") start.setDate(start.getDate() - 6)
+    if (preset === "1m") start.setMonth(start.getMonth() - 1)
+    if (preset === "3m") start.setMonth(start.getMonth() - 3)
+    return { start: toKSTDateString(start), end }
 }
 
 function SummaryCard({
@@ -52,10 +84,48 @@ export default function SalesClient({ orders: initial, totalRevenue, totalRevenu
     totalRevenue: number
     totalRevenueCount: number
 }) {
-    const [orders, setOrders] = useState<AdminOrder[]>(initial)
+    const searchParams = useSearchParams()
+    const [orders, setOrders]           = useState<AdminOrder[]>(initial)
     const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all")
-    const [search, setSearch] = useState("")
-    const [isPending, startTransition] = useTransition()
+    const [search, setSearch]           = useState("")
+    const [isPending, startTransition]  = useTransition()
+    const [isFetching, startFetch]      = useTransition()
+
+    // 날짜 범위 — 기본값: 오늘 기준 최근 1개월
+    const defaultRange = getPresetRange("1m")
+    const [startDate, setStartDate] = useState(defaultRange.start)
+    const [endDate,   setEndDate]   = useState(defaultRange.end)
+
+    // 교환/환불 화면에서 특정 주문 링크로 진입 시 자동 검색
+    useEffect(() => {
+        const orderId = searchParams.get("orderId")
+        if (orderId) setSearch(orderId.slice(0, 8).toUpperCase())
+    }, [searchParams])
+
+    // 기간 조회
+    const handleFetch = () => {
+        startFetch(async () => {
+            const data = await fetchOrdersAction(startDate || undefined, endDate || undefined)
+            setOrders(data)
+        })
+    }
+
+    // 기간 초기화 — 날짜 지우고 전체 주문 재조회
+    const handleReset = () => {
+        setStartDate("")
+        setEndDate("")
+        startFetch(async () => {
+            const data = await fetchOrdersAction()
+            setOrders(data)
+        })
+    }
+
+    // 프리셋 선택
+    const applyPreset = (preset: "today" | "7d" | "1m" | "3m") => {
+        const { start, end } = getPresetRange(preset)
+        setStartDate(start)
+        setEndDate(end)
+    }
 
     // 필터링
     const filtered = useMemo(() => {
@@ -101,9 +171,10 @@ export default function SalesClient({ orders: initial, totalRevenue, totalRevenu
         <div className="p-7 space-y-6">
             {/* 헤더 */}
             <div>
-                <h1 className="text-xl font-black" style={{ color: "var(--toss-text-primary)", letterSpacing: "-0.03em" }}>매출 관리</h1>
+                <h1 className="text-xl font-black" style={{ color: "var(--toss-text-primary)", letterSpacing: "-0.03em" }}>주문 조회</h1>
                 <p className="text-sm mt-0.5" style={{ color: "var(--toss-text-secondary)" }}>총 {orders.length}건의 주문</p>
             </div>
+
 
             {/* 요약 카드 */}
             <div className="grid grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6 gap-3">
@@ -123,8 +194,90 @@ export default function SalesClient({ orders: initial, totalRevenue, totalRevenu
 
             {/* 필터 + 검색 */}
             <div className="bg-white rounded-2xl overflow-hidden" style={{ border: "1px solid var(--toss-border)" }}>
-                <div className="px-5 pt-4 pb-0 flex items-center justify-between gap-4 flex-wrap">
-                    {/* 상태 탭 */}
+
+                {/* 1행: 조회 기간 + 검색창 + 조회/초기화 버튼 */}
+                <div className="px-5 py-3 flex items-center gap-2 flex-wrap"
+                    style={{ borderBottom: "1px solid var(--toss-border)" }}>
+
+                    <span className="text-xs font-semibold flex-shrink-0" style={{ color: "var(--toss-text-secondary)" }}>조회 기간</span>
+
+                    {/* 프리셋 */}
+                    {(["today", "7d", "1m", "3m"] as const).map((p) => {
+                        const label = { today: "오늘", "7d": "7일", "1m": "1개월", "3m": "3개월" }[p]
+                        return (
+                            <button
+                                key={p}
+                                onClick={() => applyPreset(p)}
+                                className="px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors hover:opacity-80 flex-shrink-0"
+                                style={{ backgroundColor: "var(--toss-page-bg)", border: "1px solid var(--toss-border)", color: "var(--toss-text-secondary)" }}
+                            >
+                                {label}
+                            </button>
+                        )
+                    })}
+
+                    <div className="w-px h-4 flex-shrink-0" style={{ backgroundColor: "var(--toss-border)" }} />
+
+                    {/* 날짜 입력 */}
+                    <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="px-2.5 py-1 rounded-lg text-xs outline-none flex-shrink-0"
+                        style={{ backgroundColor: "var(--toss-page-bg)", border: "1px solid var(--toss-border)", color: "var(--toss-text-primary)" }}
+                    />
+                    <span className="text-xs flex-shrink-0" style={{ color: "var(--toss-text-tertiary)" }}>~</span>
+                    <input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="px-2.5 py-1 rounded-lg text-xs outline-none flex-shrink-0"
+                        style={{ backgroundColor: "var(--toss-page-bg)", border: "1px solid var(--toss-border)", color: "var(--toss-text-primary)" }}
+                    />
+
+                    <div className="w-px h-4 flex-shrink-0" style={{ backgroundColor: "var(--toss-border)" }} />
+
+                    {/* 검색창 */}
+                    <div className="flex items-center gap-2 px-3 py-1 rounded-lg flex-1 min-w-[160px]"
+                        style={{ backgroundColor: "var(--toss-page-bg)", border: "1px solid var(--toss-border)" }}>
+                        <Search className="size-3.5 flex-shrink-0" style={{ color: "var(--toss-text-tertiary)" }} />
+                        <input
+                            type="text"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="이름, 주문번호, 상품 검색"
+                            className="bg-transparent text-xs outline-none flex-1"
+                            style={{ color: "var(--toss-text-primary)" }}
+                        />
+                    </div>
+
+                    {/* 조회 버튼 */}
+                    <button
+                        onClick={handleFetch}
+                        disabled={isFetching}
+                        className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-bold text-white flex-shrink-0 transition-opacity disabled:opacity-60"
+                        style={{ backgroundColor: "var(--toss-blue)" }}
+                    >
+                        <Search className="size-3" />
+                        {isFetching ? "조회 중..." : "조회"}
+                    </button>
+
+                    {/* 초기화 버튼 */}
+                    {(startDate || endDate) && (
+                        <button
+                            onClick={handleReset}
+                            disabled={isFetching}
+                            className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold flex-shrink-0 transition-opacity disabled:opacity-60"
+                            style={{ backgroundColor: "var(--toss-page-bg)", border: "1px solid var(--toss-border)", color: "var(--toss-text-tertiary)" }}
+                        >
+                            <XCircle className="size-3" />
+                            초기화
+                        </button>
+                    )}
+                </div>
+
+                {/* 2행: 상태 탭 */}
+                <div className="px-5 pt-3 pb-3">
                     <div className="flex gap-0.5 overflow-x-auto scrollbar-hide pb-0.5">
                         {tabs.map((t) => (
                             <button
@@ -149,24 +302,10 @@ export default function SalesClient({ orders: initial, totalRevenue, totalRevenu
                             </button>
                         ))}
                     </div>
-
-                    {/* 검색 */}
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl mb-1"
-                        style={{ backgroundColor: "var(--toss-page-bg)", border: "1px solid var(--toss-border)", minWidth: 220 }}>
-                        <Search className="size-3.5 flex-shrink-0" style={{ color: "var(--toss-text-tertiary)" }} />
-                        <input
-                            type="text"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder="이름, 주문번호, 상품 검색"
-                            className="bg-transparent text-xs outline-none flex-1"
-                            style={{ color: "var(--toss-text-primary)" }}
-                        />
-                    </div>
                 </div>
 
                 {/* 테이블 */}
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto" style={{ borderTop: "1px solid var(--toss-border)" }}>
                     {filtered.length === 0 ? (
                         <div className="py-16 text-center text-sm" style={{ color: "var(--toss-text-tertiary)" }}>
                             <Package className="size-10 mx-auto mb-3 opacity-30" />
@@ -176,7 +315,7 @@ export default function SalesClient({ orders: initial, totalRevenue, totalRevenu
                         <table className="w-full">
                             <thead>
                                 <tr style={{ borderTop: "1px solid var(--toss-border)", borderBottom: "1px solid var(--toss-border)" }}>
-                                    {["주문번호", "받는 분", "주문 상품", "결제금액", "결제수단", "상태", "주문일시"].map((h) => (
+                                    {["주문번호", "받는 분", "주문 상품", "결제금액", "결제수단", "주문 상태", "교환/환불", "처리 상태", "주문일시"].map((h) => (
                                         <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold whitespace-nowrap"
                                             style={{ color: "var(--toss-text-tertiary)", backgroundColor: "var(--toss-page-bg)" }}>
                                             {h}
@@ -228,19 +367,64 @@ export default function SalesClient({ orders: initial, totalRevenue, totalRevenu
                                                 </span>
                                             </td>
 
-                                            {/* 상태 변경 */}
+                                            {/* 주문 상태 변경 */}
                                             <td className="px-4 py-3">
                                                 <select
                                                     value={o.status}
-                                                    disabled={isPending}
+                                                    disabled={isPending || o.cancelRequest?.status === "pending" || o.status === "cancelled" || o.status === "pending"}
+                                                    title={
+                                                        o.cancelRequest?.status === "pending" ? "교환/환불 신청 처리 후 변경할 수 있습니다." :
+                                                        o.status === "cancelled" ? "취소된 주문은 상태를 변경할 수 없습니다." :
+                                                        o.status === "pending"   ? "결제 대기 중인 주문은 상태를 변경할 수 없습니다." :
+                                                        undefined
+                                                    }
                                                     onChange={(e) => handleStatusChange(o.id, e.target.value as OrderStatus)}
-                                                    className="text-[11px] font-bold px-2 py-1 rounded-lg cursor-pointer outline-none transition-opacity disabled:opacity-50"
-                                                    style={{ backgroundColor: meta.bg, color: meta.color, border: "none" }}
+                                                    className="text-[11px] font-bold px-2 py-1 rounded-lg outline-none transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                                                    style={{ backgroundColor: meta.bg, color: meta.color, border: "none", cursor: (o.status === "cancelled" || o.status === "pending" || o.cancelRequest?.status === "pending") ? "not-allowed" : "pointer" }}
                                                 >
                                                     {STATUS_FLOW.map((s) => (
                                                         <option key={s} value={s}>{STATUS_META[s].label}</option>
                                                     ))}
                                                 </select>
+                                            </td>
+
+                                            {/* 교환/환불 신청 유형 */}
+                                            <td className="px-4 py-3">
+                                                {o.cancelRequest ? (() => {
+                                                    const typeMeta = CANCEL_REQUEST_META[o.cancelRequest.type]
+                                                    const Icon     = typeMeta.icon
+                                                    return (
+                                                        <a
+                                                            href={`/admin/sales/cancel-requests?orderId=${o.id}`}
+                                                            className="flex items-center gap-1.5 w-fit px-2.5 py-1.5 rounded-xl hover:opacity-80 transition-opacity"
+                                                            style={{ backgroundColor: typeMeta.bg }}
+                                                        >
+                                                            <Icon className="size-3.5 flex-shrink-0" style={{ color: typeMeta.color }} />
+                                                            <span className="text-[11px] font-bold whitespace-nowrap" style={{ color: typeMeta.color }}>
+                                                                {typeMeta.label}
+                                                            </span>
+                                                        </a>
+                                                    )
+                                                })() : (
+                                                    <span className="text-[11px]" style={{ color: "var(--toss-text-tertiary)" }}>—</span>
+                                                )}
+                                            </td>
+
+                                            {/* 처리 상태 */}
+                                            <td className="px-4 py-3">
+                                                {o.cancelRequest ? (() => {
+                                                    const statusStyle = CANCEL_REQUEST_STATUS_STYLE[o.cancelRequest.status]
+                                                    return (
+                                                        <span
+                                                            className="inline-flex items-center text-[11px] font-bold px-2.5 py-1.5 rounded-xl whitespace-nowrap"
+                                                            style={{ backgroundColor: statusStyle.bg, color: statusStyle.color }}
+                                                        >
+                                                            {statusStyle.suffix}
+                                                        </span>
+                                                    )
+                                                })() : (
+                                                    <span className="text-[11px]" style={{ color: "var(--toss-text-tertiary)" }}>—</span>
+                                                )}
                                             </td>
 
                                             {/* 주문일시 */}
