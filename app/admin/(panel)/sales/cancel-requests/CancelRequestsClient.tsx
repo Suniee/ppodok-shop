@@ -507,7 +507,7 @@ export default function CancelRequestsClient({
                 </div>
 
                 {/* Row 2: 상태 탭 */}
-                <div className="px-5 pt-3 pb-3 flex items-center gap-2 flex-wrap overflow-x-auto scrollbar-hide">
+                <div className="px-5 py-1 flex items-center gap-2 flex-wrap overflow-x-auto scrollbar-hide">
                     {tabs.map((t) => (
                         <button
                             key={t.key}

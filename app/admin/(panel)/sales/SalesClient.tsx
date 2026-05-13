@@ -96,10 +96,12 @@ export default function SalesClient({ orders: initial, totalRevenue, totalRevenu
     const [startDate, setStartDate] = useState(defaultRange.start)
     const [endDate,   setEndDate]   = useState(defaultRange.end)
 
-    // 교환/환불 화면에서 특정 주문 링크로 진입 시 자동 검색
+    // 교환/환불 화면의 주문번호 링크 또는 회원관리의 주문보기 링크로 진입 시 자동 검색
     useEffect(() => {
-        const orderId = searchParams.get("orderId")
-        if (orderId) setSearch(orderId.slice(0, 8).toUpperCase())
+        const orderId    = searchParams.get("orderId")
+        const searchParam = searchParams.get("search")
+        if (orderId)      setSearch(orderId.slice(0, 8).toUpperCase())
+        else if (searchParam) setSearch(searchParam)
     }, [searchParams])
 
     // 기간 조회
@@ -277,8 +279,8 @@ export default function SalesClient({ orders: initial, totalRevenue, totalRevenu
                 </div>
 
                 {/* 2행: 상태 탭 */}
-                <div className="px-5 pt-3 pb-3">
-                    <div className="flex gap-0.5 overflow-x-auto scrollbar-hide pb-0.5">
+                <div className="px-5 py-1">
+                    <div className="flex gap-0.5 overflow-x-auto scrollbar-hide">
                         {tabs.map((t) => (
                             <button
                                 key={t.key}
@@ -448,7 +450,7 @@ export default function SalesClient({ orders: initial, totalRevenue, totalRevenu
                             {filtered.length}건 표시 중
                         </p>
                         <p className="text-xs font-bold" style={{ color: "var(--toss-text-primary)" }}>
-                            합계 {filtered.reduce((s, o) => s + o.totalPrice, 0).toLocaleString()}원
+                            주문확인 합계 {filtered.filter((o) => o.status === "confirmed").reduce((s, o) => s + o.totalPrice, 0).toLocaleString()}원
                         </p>
                     </div>
                 )}
