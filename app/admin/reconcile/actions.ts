@@ -13,13 +13,17 @@ export async function receiveTossDataAction(
     end: string,
 ): Promise<{ saved: number; errors: string[]; message: string }> {
     try {
-        const startIso = `${start}T00:00:00+09:00`
-        const endIso   = `${end}T23:59:59+09:00`
+        // Toss API: timezone 없는 형식 (KST 기준으로 처리됨)
+        const tossStart = `${start}T00:00:00`
+        const tossEnd   = `${end}T23:59:59`
+        // DB 쿼리: KST 명시 (TIMESTAMPTZ 비교 정확도 확보)
+        const dbStart = `${start}T00:00:00+09:00`
+        const dbEnd   = `${end}T23:59:59+09:00`
 
         // 기존 데이터 삭제 후 Toss API 재조회
-        await deleteTossTransactionsByDateRange(startIso, endIso)
+        await deleteTossTransactionsByDateRange(dbStart, dbEnd)
 
-        const transactions = await fetchTossTransactions(startIso, endIso)
+        const transactions = await fetchTossTransactions(tossStart, tossEnd)
 
         if (transactions.length === 0) {
             return { saved: 0, errors: [], message: `${start} ~ ${end} · 조회된 거래내역이 없습니다.` }
