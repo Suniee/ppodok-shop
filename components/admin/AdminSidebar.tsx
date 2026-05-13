@@ -7,63 +7,37 @@ import {
     LayoutDashboard, Users, Image, Package, Tag, Palette,
     ScrollText, LogOut, ChevronRight, TrendingUp, CreditCard,
     BarChart2, ChevronDown, Scale, Undo2, ShieldCheck,
+    Settings, List,
 } from "lucide-react"
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser"
 import type { AdminUser, AdminRole } from "@/lib/supabase/admins"
+import { buildNavEntries } from "@/lib/admin-menu"
+import type { NavEntry, NavItem, NavGroup, MenuConfig } from "@/lib/admin-menu"
 
-type NavItem = {
-    type: "item"
-    href: string
-    label: string
-    icon: React.ElementType
-    superAdminOnly?: boolean
+// 아이콘 이름 문자열 → React 컴포넌트 매핑 (클라이언트에서만 사용)
+const ICON_MAP: Record<string, React.ElementType> = {
+    LayoutDashboard, BarChart2, TrendingUp, CreditCard, Scale, Undo2,
+    Users, ShieldCheck, Image, Package, Tag, Palette, ScrollText, Settings, List,
 }
 
-type NavGroup = {
-    type: "group"
-    key: string
-    label: string
-    icon: React.ElementType
-    children: NavItem[]
+function IconComp({ name, className }: { name: string; className?: string }) {
+    const Comp = ICON_MAP[name]
+    if (!Comp) return null
+    return <Comp className={className} />
 }
-
-type NavEntry = NavItem | NavGroup
-
-const navEntries: NavEntry[] = [
-    { type: "item", href: "/admin/dashboard",     label: "대시보드",      icon: LayoutDashboard },
-    {
-        type: "group",
-        key: "sales",
-        label: "매출 관리",
-        icon: BarChart2,
-        children: [
-            { type: "item", href: "/admin/sales",                  label: "주문 조회",   icon: TrendingUp },
-            { type: "item", href: "/admin/sales/payments",         label: "결제 내역",   icon: CreditCard },
-            { type: "item", href: "/admin/reconcile",              label: "결제 대사",   icon: Scale },
-            { type: "item", href: "/admin/sales/cancel-requests",  label: "교환/환불",   icon: Undo2 },
-        ],
-    },
-    { type: "item", href: "/admin/members",       label: "회원 관리",     icon: Users },
-    { type: "item", href: "/admin/admins",        label: "관리자 관리",   icon: ShieldCheck, superAdminOnly: true },
-    { type: "item", href: "/admin/banners",       label: "배너 관리",     icon: Image },
-    { type: "item", href: "/admin/products",      label: "상품 관리",     icon: Package },
-    { type: "item", href: "/admin/categories",    label: "카테고리 관리", icon: Tag },
-    { type: "item", href: "/admin/design-system", label: "디자인 시스템", icon: Palette },
-    { type: "item", href: "/admin/settings",      label: "정책관리",      icon: ScrollText },
-]
 
 function isActive(href: string, pathname: string) {
     if (href === "/admin/sales") return pathname === href
     return pathname === href || pathname.startsWith(href + "/")
 }
 
-function initOpenState(pathname: string): Record<string, boolean> {
+function initOpenState(entries: NavEntry[], pathname: string): Record<string, boolean> {
     const state: Record<string, boolean> = {}
-    navEntries.forEach((entry) => {
+    for (const entry of entries) {
         if (entry.type === "group") {
-            state[entry.key] = entry.children.some((c) => isActive(c.href, pathname))
+            state[entry.id] = entry.children.some((c) => isActive(c.href, pathname))
         }
-    })
+    }
     return state
 }
 
@@ -75,20 +49,23 @@ function avatarChar(name: string | null, email: string) {
 
 type Props = {
     currentUser: { id: string; email: string; name: string | null; adminRole: AdminRole } | null
-    admins: AdminUser[]
+    admins:      AdminUser[]
+    menuConfig:  MenuConfig[]
 }
 
-export default function AdminSidebar({ currentUser, admins }: Props) {
-    const pathname = usePathname()
-    const [open, setOpen]               = useState<Record<string, boolean>>(() => initOpenState(pathname))
+export default function AdminSidebar({ currentUser, admins, menuConfig }: Props) {
+    const pathname     = usePathname()
+    const isSuperAdmin = currentUser?.adminRole === "super"
+
+    const navEntries = buildNavEntries(menuConfig, isSuperAdmin)
+
+    const [open, setOpen]               = useState<Record<string, boolean>>(() => initOpenState(navEntries, pathname))
     const [showSwitcher, setShowSwitcher] = useState(false)
-    const [switching, setSwitching]       = useState<string | null>(null) // 전환 중인 이메일
+    const [switching, setSwitching]       = useState<string | null>(null)
     const [switchError, setSwitchError]   = useState<string | null>(null)
 
     const toggleGroup = (key: string) =>
         setOpen((prev) => ({ ...prev, [key]: !prev[key] }))
-
-    const isSuperAdmin = currentUser?.adminRole === 'super'
 
     // 현재 로그인 계정을 제외한 다른 관리자 목록
     const otherAdmins = admins.filter((a) => a.id !== currentUser?.id && a.status === "active")
@@ -97,7 +74,6 @@ export default function AdminSidebar({ currentUser, admins }: Props) {
         setSwitchError(null)
         setSwitching(targetEmail)
         try {
-            // 1단계: 서버에서 OTP 발급
             const res = await fetch("/api/admin/switch-account", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -111,8 +87,6 @@ export default function AdminSidebar({ currentUser, admins }: Props) {
                 return
             }
 
-            // 2단계: 브라우저 클라이언트로 OTP 검증 → 세션 전환
-            // verifyOtp는 PKCE 없이 직접 토큰을 교환하므로 서버 생성 OTP와 호환됨
             const supabase = createSupabaseBrowserClient()
             const { error: otpError } = await supabase.auth.verifyOtp({
                 email: targetEmail,
@@ -126,7 +100,6 @@ export default function AdminSidebar({ currentUser, admins }: Props) {
                 return
             }
 
-            // 3단계: 새 세션으로 관리자 대시보드 새로고침
             window.location.href = "/admin/dashboard"
         } catch {
             setSwitchError("네트워크 오류가 발생했습니다.")
@@ -160,9 +133,7 @@ export default function AdminSidebar({ currentUser, admins }: Props) {
 
             {/* Nav */}
             <nav data-ui-id="nav-admin-menu" className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-                {navEntries.filter((entry) =>
-                    entry.type !== "item" || !entry.superAdminOnly || isSuperAdmin
-                ).map((entry) => {
+                {navEntries.map((entry) => {
                     if (entry.type === "item") {
                         const active = isActive(entry.href, pathname)
                         return (
@@ -176,7 +147,7 @@ export default function AdminSidebar({ currentUser, admins }: Props) {
                                 }}
                             >
                                 <span className="flex items-center gap-2.5">
-                                    <entry.icon className="size-4" />
+                                    <IconComp name={entry.icon} className="size-4" />
                                     {entry.label}
                                 </span>
                                 {active && <ChevronRight className="size-3 opacity-50" />}
@@ -184,18 +155,18 @@ export default function AdminSidebar({ currentUser, admins }: Props) {
                         )
                     }
 
-                    const isOpen      = !!open[entry.key]
+                    const isOpen      = !!open[entry.id]
                     const groupActive = entry.children.some((c) => isActive(c.href, pathname))
 
                     return (
-                        <div key={entry.key}>
+                        <div key={entry.id}>
                             <button
-                                onClick={() => toggleGroup(entry.key)}
+                                onClick={() => toggleGroup(entry.id)}
                                 className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-white/5"
                                 style={{ color: groupActive ? "#fff" : "rgba(255,255,255,0.5)" }}
                             >
                                 <span className="flex items-center gap-2.5">
-                                    <entry.icon className="size-4" />
+                                    <IconComp name={entry.icon} className="size-4" />
                                     {entry.label}
                                 </span>
                                 <motion.span
@@ -231,7 +202,7 @@ export default function AdminSidebar({ currentUser, admins }: Props) {
                                                         }}
                                                     >
                                                         <span className="flex items-center gap-2">
-                                                            <child.icon className="size-3.5" />
+                                                            <IconComp name={child.icon} className="size-3.5" />
                                                             {child.label}
                                                         </span>
                                                         {active && <ChevronRight className="size-3 opacity-50" />}
@@ -250,7 +221,6 @@ export default function AdminSidebar({ currentUser, admins }: Props) {
             {/* Bottom — 계정 정보 + 전환 */}
             <div className="px-3 py-4" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
 
-                {/* 계정 전환 패널 (위로 슬라이드) */}
                 <AnimatePresence initial={false}>
                     {showSwitcher && (
                         <motion.div
@@ -281,9 +251,7 @@ export default function AdminSidebar({ currentUser, admins }: Props) {
                                         <div
                                             key={admin.id}
                                             className="flex items-center gap-2 px-2 py-1.5 mx-1 rounded-lg"
-                                            style={{ backgroundColor: "transparent" }}
                                         >
-                                            {/* 아바타 */}
                                             <div
                                                 className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
                                                 style={{ backgroundColor: "rgba(255,255,255,0.15)" }}
@@ -291,7 +259,6 @@ export default function AdminSidebar({ currentUser, admins }: Props) {
                                                 {avatarChar(admin.name, admin.email)}
                                             </div>
 
-                                            {/* 이름 + 구분 */}
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-xs font-semibold leading-none truncate" style={{ color: "#fff" }}>
                                                     {admin.name ?? admin.email.split("@")[0]}
@@ -303,7 +270,6 @@ export default function AdminSidebar({ currentUser, admins }: Props) {
                                                 )}
                                             </div>
 
-                                            {/* 전환 버튼 */}
                                             <button
                                                 onClick={() => handleSwitch(admin.email)}
                                                 disabled={switching !== null}

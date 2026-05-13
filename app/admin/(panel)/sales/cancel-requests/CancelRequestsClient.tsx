@@ -9,6 +9,7 @@ import {
 import type { AdminCancelRequest, CancelRequestStatus, CancelRequestType } from "@/lib/supabase/cancelRequests"
 import { CANCEL_REQUEST_TYPE_LABEL, CANCEL_REQUEST_STATUS_LABEL } from "@/lib/supabase/cancelRequests"
 import { approveCancelRequestAction, rejectCancelRequestAction } from "./actions"
+import LoadingOverlay from "@/components/admin/LoadingOverlay"
 
 function toKSTDateString(date: Date): string {
     return new Date(date.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
@@ -317,6 +318,7 @@ export default function CancelRequestsClient({
     const [inputEnd,    setInputEnd]    = useState(defaultRange.end)
     const [activeStart, setActiveStart] = useState<string | null>(defaultRange.start)
     const [activeEnd,   setActiveEnd]   = useState<string | null>(defaultRange.end)
+    const [isFetching,  startFetch]     = useTransition()
 
     // 주문 조회 화면에서 특정 주문의 교환/환불 배지를 클릭하면 orderId로 자동 검색
     useEffect(() => {
@@ -328,17 +330,21 @@ export default function CancelRequestsClient({
     }, [searchParams])
 
     const handleFetch = () => {
-        setActiveStart(inputStart)
-        setActiveEnd(inputEnd)
+        startFetch(() => {
+            setActiveStart(inputStart)
+            setActiveEnd(inputEnd)
+        })
     }
 
     // 초기화: 날짜 필터 해제 → 전체 기간 표시
     const handleReset = () => {
-        const range = getPresetRange("1month")
-        setInputStart(range.start)
-        setInputEnd(range.end)
-        setActiveStart(null)
-        setActiveEnd(null)
+        startFetch(() => {
+            const range = getPresetRange("1month")
+            setInputStart(range.start)
+            setInputEnd(range.end)
+            setActiveStart(null)
+            setActiveEnd(null)
+        })
     }
 
     const applyPreset = (preset: "today" | "7d" | "1month" | "3month") => {
@@ -390,6 +396,8 @@ export default function CancelRequestsClient({
 
     return (
         <div className="p-7 space-y-6">
+            <LoadingOverlay show={isFetching} label="조회 중..." />
+
             {/* 헤더 */}
             <div className="flex items-start justify-between">
                 <div>

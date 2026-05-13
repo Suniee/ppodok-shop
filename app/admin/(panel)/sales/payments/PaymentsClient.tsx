@@ -8,6 +8,7 @@ import {
 } from "lucide-react"
 import { syncMissingPaymentsAction } from "./actions"
 import type { AdminPayment } from "@/lib/supabase/payments"
+import LoadingOverlay from "@/components/admin/LoadingOverlay"
 
 function toKSTDateString(date: Date): string {
     return new Date(date.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
@@ -79,6 +80,7 @@ export default function PaymentsClient({ payments }: { payments: AdminPayment[] 
     const [activeEnd,   setActiveEnd]   = useState<string | null>(defaultRange.end)
     const [search,      setSearch]      = useState("")
     const [isSyncing,   startSync]      = useTransition()
+    const [isFetching,  startFetch]     = useTransition()
     const [syncResult,  setSyncResult]  = useState<{ synced: number; skipped: number; errors: string[] } | null>(null)
 
     const handleSync = () => {
@@ -90,17 +92,21 @@ export default function PaymentsClient({ payments }: { payments: AdminPayment[] 
     }
 
     const handleFetch = () => {
-        setActiveStart(inputStart)
-        setActiveEnd(inputEnd)
+        startFetch(() => {
+            setActiveStart(inputStart)
+            setActiveEnd(inputEnd)
+        })
     }
 
     // 초기화: 날짜 필터 해제 → 전체 기간 표시
     const handleReset = () => {
-        const range = getPresetRange("1month")
-        setInputStart(range.start)
-        setInputEnd(range.end)
-        setActiveStart(null)
-        setActiveEnd(null)
+        startFetch(() => {
+            const range = getPresetRange("1month")
+            setInputStart(range.start)
+            setInputEnd(range.end)
+            setActiveStart(null)
+            setActiveEnd(null)
+        })
     }
 
     const applyPreset = (preset: "today" | "7d" | "1month" | "3month") => {
@@ -136,6 +142,8 @@ export default function PaymentsClient({ payments }: { payments: AdminPayment[] 
 
     return (
         <div className="p-7 space-y-6">
+            <LoadingOverlay show={isFetching} label="조회 중..." />
+
             {/* 헤더 */}
             <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>

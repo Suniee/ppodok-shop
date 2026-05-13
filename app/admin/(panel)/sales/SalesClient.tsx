@@ -4,6 +4,7 @@ import { useState, useTransition, useMemo, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import { Search, TrendingUp, ShoppingCart, Package, Truck, CheckCircle2, XCircle, Clock, BadgeCheck, PenLine, ArrowLeftRight, Undo2, CalendarDays } from "lucide-react"
 import { updateOrderStatusAction, fetchOrdersAction } from "./actions"
+import LoadingOverlay from "@/components/admin/LoadingOverlay"
 import type { AdminOrder, OrderStatus } from "@/lib/supabase/orders"
 import type { CancelRequestType, CancelRequestStatus } from "@/lib/supabase/cancelRequests"
 
@@ -171,6 +172,8 @@ export default function SalesClient({ orders: initial, totalRevenue, totalRevenu
 
     return (
         <div className="p-7 space-y-6">
+            <LoadingOverlay show={isFetching} label="조회 중..." />
+
             {/* 헤더 */}
             <div>
                 <h1 className="text-xl font-black" style={{ color: "var(--toss-text-primary)", letterSpacing: "-0.03em" }}>주문 조회</h1>

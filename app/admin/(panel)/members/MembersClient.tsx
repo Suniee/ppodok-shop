@@ -4,6 +4,7 @@ import { useState, useTransition, useMemo } from "react"
 import { Users, Search, CheckCircle2, XCircle, Clock, ShoppingBag, UserCheck } from "lucide-react"
 import { updateMemberStatusAction, updateMemberGradeAction, approveMemberAction, rejectMemberAction } from "./actions"
 import type { AdminMember, MemberStatus, MemberGrade, MemberRole } from "@/lib/supabase/members"
+import LoadingOverlay from "@/components/admin/LoadingOverlay"
 
 function toKSTDateString(date: Date): string {
     return new Date(date.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
@@ -173,7 +174,8 @@ export default function MembersClient({ members: initial }: { members: AdminMemb
     const [members, setMembers]           = useState<AdminMember[]>(initial)
     const [search, setSearch]             = useState("")
     const [statusFilter, setStatusFilter] = useState<TabKey>("all")
-    const [isPending, startTransition]    = useTransition()
+    const [isPending,  startTransition] = useTransition()
+    const [isFetching, startFetch]     = useTransition()
 
     // 날짜 필터 (가입일 기준, pending 탭에서는 미적용)
     const defaultRange = getPresetRange("1month")
@@ -187,11 +189,15 @@ export default function MembersClient({ members: initial }: { members: AdminMemb
     const [rejectTargetId, setRejectTargetId] = useState<string | null>(null)
     const [rejectError, setRejectError] = useState<string | null>(null)
 
-    const handleFetch = () => { setActiveStart(inputStart); setActiveEnd(inputEnd) }
+    const handleFetch = () => {
+        startFetch(() => { setActiveStart(inputStart); setActiveEnd(inputEnd) })
+    }
     const handleReset = () => {
-        const r = getPresetRange("1month")
-        setInputStart(r.start); setInputEnd(r.end)
-        setActiveStart(null);   setActiveEnd(null)
+        startFetch(() => {
+            const r = getPresetRange("1month")
+            setInputStart(r.start); setInputEnd(r.end)
+            setActiveStart(null);   setActiveEnd(null)
+        })
     }
     const applyPreset = (p: "today" | "7d" | "1month" | "3month") => {
         const r = getPresetRange(p)
@@ -276,6 +282,8 @@ export default function MembersClient({ members: initial }: { members: AdminMemb
 
     return (
         <div data-ui-id="page-admin-members" className="p-7 space-y-6">
+            <LoadingOverlay show={isFetching} label="조회 중..." />
+
             {/* 헤더 */}
             <div>
                 <h1 className="text-xl font-black" style={{ color: "var(--toss-text-primary)", letterSpacing: "-0.03em" }}>

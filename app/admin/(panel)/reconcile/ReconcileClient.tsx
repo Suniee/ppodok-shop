@@ -9,6 +9,7 @@ import {
 import type { TossTransaction } from "@/lib/toss"
 import type { AdminPayment } from "@/lib/supabase/payments"
 import { resavePaymentAction, cancelPaymentAction, receiveTossDataAction } from "./actions"
+import LoadingOverlay from "@/components/admin/LoadingOverlay"
 
 type MatchStatus = "matched" | "mismatch" | "toss_only" | "db_only"
 
@@ -253,6 +254,8 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
 
     return (
         <div data-ui-id="page-admin-reconcile" className="p-7 space-y-6">
+            <LoadingOverlay show={isReceiving} label="데이터 수신 중..." color="#00A878" />
+
             {/* 헤더: 데이터수신 버튼만 유지, 날짜 필터는 테이블 카드 내로 이동 */}
             <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
