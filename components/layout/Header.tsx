@@ -83,7 +83,7 @@ export default function Header() {
               className="font-black text-xl tracking-tight"
               style={{ color: "var(--toss-blue)" }}
             >
-              뽀독샵
+              뽀득삽
             </span>
           </a>
 

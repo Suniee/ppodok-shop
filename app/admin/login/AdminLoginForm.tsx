@@ -181,7 +181,7 @@ export default function AdminLoginForm() {
                     >
                         뽀
                     </div>
-                    <h1 className="text-xl font-black text-white tracking-tight">뽀독샵 관리자</h1>
+                    <h1 className="text-xl font-black text-white tracking-tight">뽀득삽 관리자</h1>
                     <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.4)" }}>
                         {view === "login"      && "관리자 계정으로 로그인하세요"}
                         {view === "signup"     && "관리자 계정을 신청하세요"}

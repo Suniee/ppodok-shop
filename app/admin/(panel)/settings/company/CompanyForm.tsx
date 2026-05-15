@@ -63,7 +63,7 @@ export default function CompanyForm({ initial }: { initial: Omit<CompanyInfo, "i
                 <div className="grid grid-cols-2 gap-4">
                     <Field label="상호명">
                         <input data-ui-id="input-company-name" className={inputCls} style={inputStyle}
-                            value={form.company_name} onChange={set("company_name")} placeholder="뽀독샵" />
+                            value={form.company_name} onChange={set("company_name")} placeholder="뽀득삽" />
                     </Field>
                     <Field label="대표자">
                         <input data-ui-id="input-company-representative" className={inputCls} style={inputStyle}
@@ -127,7 +127,7 @@ export default function CompanyForm({ initial }: { initial: Omit<CompanyInfo, "i
                 <SectionTitle>기타</SectionTitle>
                 <Field label="저작권 문구">
                     <input data-ui-id="input-company-copyright" className={inputCls} style={inputStyle}
-                        value={form.copyright} onChange={set("copyright")} placeholder="© 2025 뽀독샵. All Rights Reserved." />
+                        value={form.copyright} onChange={set("copyright")} placeholder="© 2025 뽀득삽. All Rights Reserved." />
                 </Field>
             </section>
 

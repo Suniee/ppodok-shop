@@ -19,7 +19,7 @@ export default async function Footer() {
                 {/* Logo */}
                 <div className="flex items-center gap-1.5 mb-5">
                     <span className="font-black text-base" style={{ color: "var(--toss-blue)" }}>
-                        {info?.company_name || "뽀독샵"}
+                        {info?.company_name || "뽀득삽"}
                     </span>
                 </div>
 
@@ -73,7 +73,7 @@ export default async function Footer() {
                 {/* Bottom */}
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="text-xs" style={{ color: "var(--toss-text-tertiary)" }}>
-                        {info?.copyright || `© ${new Date().getFullYear()} 뽀독샵. All Rights Reserved.`}
+                        {info?.copyright || `© ${new Date().getFullYear()} 뽀득삽. All Rights Reserved.`}
                     </p>
 
                     {/* SNS 아이콘 — URL이 있는 것만 표시 */}

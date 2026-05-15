@@ -94,7 +94,7 @@ export default function ForgotPasswordPage() {
             {/* 브랜드 */}
             <div className="text-center mb-8">
                 <a href="/" className="inline-block">
-                    <span className="font-black text-3xl tracking-tight" style={{ color: "var(--toss-blue)" }}>뽀독샵</span>
+                    <span className="font-black text-3xl tracking-tight" style={{ color: "var(--toss-blue)" }}>뽀득삽</span>
                 </a>
             </div>
 

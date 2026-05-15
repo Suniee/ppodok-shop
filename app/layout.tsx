@@ -2,8 +2,8 @@ import type { Metadata } from "next"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "뽀독샵 - 생활용품 전문 쇼핑몰",
-  description: "생활용품, 주방용품, 세제, 식품, 뷰티/화장품 전문 온라인 쇼핑몰 뽀독샵",
+  title: "뽀득삽 - 생활용품 전문 쇼핑몰",
+  description: "생활용품, 주방용품, 세제, 식품, 뷰티/화장품 전문 온라인 쇼핑몰 뽀득삽",
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

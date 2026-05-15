@@ -16,7 +16,7 @@ interface Props {
     disabled?: boolean
 }
 
-// 카카오 우편번호 위젯을 뽀독샵 디자인 시스템 색상에 맞게 커스터마이징
+// 카카오 우편번호 위젯을 뽀득삽 디자인 시스템 색상에 맞게 커스터마이징
 const postcodeTheme = {
     bgColor: "#ffffff",
     searchBgColor: "#F2F4F6",

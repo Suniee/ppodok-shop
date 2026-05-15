@@ -128,7 +128,7 @@ export default function AdminSidebar({ currentUser, admins, menuConfig }: Props)
                     뽀
                 </div>
                 <div>
-                    <p className="text-sm font-black leading-none">뽀독샵</p>
+                    <p className="text-sm font-black leading-none">뽀득삽</p>
                     <p className="text-[10px] leading-none mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>관리자</p>
                 </div>
             </div>

@@ -27,7 +27,7 @@ INSERT INTO commerce.company_info (
     1, '제이코리아', '대표이사', '000-00-00000',
     '제0000-서울강서-0000호', '서울특별시 강서구 마곡동 000-00',
     '02-2606-1285', '평일 10:00~18:00, 주말·공휴일 휴무',
-    '© 2025 뽀독샵. All Rights Reserved.',
+    '© 2025 뽀득삽. All Rights Reserved.',
     '', '', '', ''
 ) ON CONFLICT (id) DO NOTHING;
 

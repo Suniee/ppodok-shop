@@ -94,7 +94,7 @@ function TypographySection() {
                 <span
                   style={{ fontSize: val, fontWeight: typography.weight.semibold, color: "var(--toss-text-primary)", lineHeight: 1.2 }}
                 >
-                  뽀독샵
+                  뽀득삽
                 </span>
                 <span className="text-xs font-mono ml-auto" style={{ color: "var(--toss-text-tertiary)" }}>
                   {key} · {val}
@@ -124,7 +124,7 @@ function TypographySection() {
 
           <p className="text-xs font-bold uppercase tracking-widest mb-4 mt-8" style={{ color: "var(--toss-text-tertiary)" }}>Semantic Roles</p>
           {[
-            { role: "Display", size: "40px", weight: 900, sample: "뽀독샵" },
+            { role: "Display", size: "40px", weight: 900, sample: "뽀득삽" },
             { role: "Heading 1", size: "28px", weight: 700, sample: "카테고리 전체보기" },
             { role: "Heading 2", size: "20px", weight: 700, sample: "신상품 New Arrivals" },
             { role: "Body", size: "16px", weight: 400, sample: "상품을 둘러보세요" },
@@ -266,7 +266,7 @@ export default function DesignSystemPage() {
             v1.0.0
           </span>
           <span className="text-xs" style={{ color: "var(--toss-text-tertiary)" }}>
-            뽀독샵 Design System
+            뽀득삽 Design System
           </span>
         </div>
         <h1
@@ -276,7 +276,7 @@ export default function DesignSystemPage() {
           디자인 시스템
         </h1>
         <p className="text-base" style={{ color: "var(--toss-text-secondary)" }}>
-          뽀독샵의 모든 UI를 구성하는 디자인 토큰과 컴포넌트 라이브러리입니다.
+          뽀득삽의 모든 UI를 구성하는 디자인 토큰과 컴포넌트 라이브러리입니다.
         </p>
       </div>
 
