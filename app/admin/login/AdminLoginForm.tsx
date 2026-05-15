@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import { Eye, EyeOff, Loader2, ShieldCheck, ArrowLeft, Mail, CheckCircle2 } from "lucide-react"
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser"
 import { adminLoginAction } from "./actions"
@@ -39,6 +40,7 @@ function ErrBox({ msg }: { msg: string }) {
 }
 
 export default function AdminLoginForm() {
+    const router = useRouter()
     const [view, setView] = useState<View>("login")
 
     // 로그인
@@ -73,7 +75,11 @@ export default function AdminLoginForm() {
         const fd = new FormData(e.currentTarget)
         startLogin(async () => {
             const result = await adminLoginAction(fd)
-            if (result?.error) setLoginError(result.error)
+            if (result.error) {
+                setLoginError(result.error)
+            } else {
+                router.push("/admin/dashboard")
+            }
         })
     }
 

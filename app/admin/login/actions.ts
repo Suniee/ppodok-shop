@@ -1,12 +1,11 @@
 "use server"
 
-import { redirect } from "next/navigation"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 export async function adminLoginAction(
     formData: FormData
-): Promise<{ error: string } | never> {
+): Promise<{ success: true } | { error: string }> {
     const email    = (formData.get("email")    as string).trim()
     const password = (formData.get("password") as string)
 
@@ -40,5 +39,5 @@ export async function adminLoginAction(
         return { error: "관리자 권한이 없거나 비활성 계정입니다." }
     }
 
-    redirect("/admin/dashboard")
+    return { success: true }
 }
