@@ -1,11 +1,11 @@
 import { redirect } from "next/navigation"
-import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { createSupabaseServerClient, ADMIN_STORAGE_KEY } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import AdminLoginForm from "./AdminLoginForm"
 
 export default async function AdminLoginPage() {
     // 이미 로그인된 관리자는 대시보드로 바로 이동
-    const supabase = await createSupabaseServerClient()
+    const supabase = await createSupabaseServerClient(ADMIN_STORAGE_KEY)
     const { data: { user } } = await supabase.auth.getUser()
 
     if (user) {

@@ -10,6 +10,7 @@ import {
     Settings, List, Star, MessageCircle,
 } from "lucide-react"
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser"
+import { ADMIN_STORAGE_KEY } from "@/lib/supabase/keys"
 import type { AdminUser, AdminRole } from "@/lib/supabase/admins"
 import { buildNavEntries } from "@/lib/admin-menu"
 import type { NavEntry, NavItem, NavGroup, MenuConfig } from "@/lib/admin-menu"
@@ -88,7 +89,7 @@ export default function AdminSidebar({ currentUser, admins, menuConfig }: Props)
                 return
             }
 
-            const supabase = createSupabaseBrowserClient()
+            const supabase = createSupabaseBrowserClient(ADMIN_STORAGE_KEY)
             const { error: otpError } = await supabase.auth.verifyOtp({
                 email: targetEmail,
                 token: data.otp,
@@ -109,7 +110,7 @@ export default function AdminSidebar({ currentUser, admins, menuConfig }: Props)
     }
 
     const handleLogout = async () => {
-        const supabase = createSupabaseBrowserClient()
+        const supabase = createSupabaseBrowserClient(ADMIN_STORAGE_KEY)
         await supabase.auth.signOut()
         window.location.href = "/admin/login"
     }

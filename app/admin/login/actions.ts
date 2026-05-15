@@ -1,6 +1,6 @@
 "use server"
 
-import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { createSupabaseServerClient, ADMIN_STORAGE_KEY } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 export async function adminLoginAction(
@@ -13,7 +13,7 @@ export async function adminLoginAction(
         return { error: "이메일과 비밀번호를 입력해 주세요." }
     }
 
-    const supabase = await createSupabaseServerClient()
+    const supabase = await createSupabaseServerClient(ADMIN_STORAGE_KEY)
 
     // 1. 로그인 시도
     const { data, error: signInError } = await supabase.auth.signInWithPassword({

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { Eye, EyeOff, Loader2, ShieldCheck, ArrowLeft, Mail, CheckCircle2 } from "lucide-react"
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser"
+import { ADMIN_STORAGE_KEY } from "@/lib/supabase/keys"
 import { adminLoginAction } from "./actions"
 
 type View = "login" | "signup" | "signup-done" | "forgot" | "sent"
@@ -90,7 +91,7 @@ export default function AdminLoginForm() {
         setSignLoading(true)
         setSignError(null)
 
-        const supabase = createSupabaseBrowserClient()
+        const supabase = createSupabaseBrowserClient(ADMIN_STORAGE_KEY)
         const { data, error } = await supabase.auth.signUp({
             email: signEmail.trim(),
             password: signPw,
@@ -126,7 +127,7 @@ export default function AdminLoginForm() {
         setForgotLoading(true)
         setForgotError(null)
 
-        const supabase = createSupabaseBrowserClient()
+        const supabase = createSupabaseBrowserClient(ADMIN_STORAGE_KEY)
         const { error } = await supabase.auth.resetPasswordForEmail(
             forgotEmail.trim(),
             { redirectTo: `${window.location.origin}/reset-password` }

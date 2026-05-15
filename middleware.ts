@@ -1,15 +1,20 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
+import { ADMIN_STORAGE_KEY } from "@/lib/supabase/keys"
 
 // 모든 요청마다 Supabase 세션 쿠키를 갱신해 로그인 상태를 유지한다
+// 어드민 경로는 별도 storageKey를 사용해 프론트 세션과 분리한다
 export async function middleware(request: NextRequest) {
     let response = NextResponse.next({ request })
+
+    const isAdminRoute = request.nextUrl.pathname.startsWith("/admin")
 
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
             db: { schema: "commerce" },
+            ...(isAdminRoute && { auth: { storageKey: ADMIN_STORAGE_KEY } }),
             cookies: {
                 getAll() {
                     return request.cookies.getAll()

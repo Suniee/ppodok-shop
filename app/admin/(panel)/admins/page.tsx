@@ -2,12 +2,12 @@ import { redirect } from "next/navigation"
 import { Suspense } from "react"
 import AdminsClient from "./AdminsClient"
 import { fetchAdminUsers, fetchPendingUsers } from "@/lib/supabase/admins"
-import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { createSupabaseServerClient, ADMIN_STORAGE_KEY } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 export default async function AdminsPage() {
     // 수퍼관리자만 접근 허용 — 직접 URL 입력 방어
-    const supabase = await createSupabaseServerClient()
+    const supabase = await createSupabaseServerClient(ADMIN_STORAGE_KEY)
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) redirect("/admin/login")

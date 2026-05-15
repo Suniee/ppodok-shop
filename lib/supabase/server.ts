@@ -1,9 +1,10 @@
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
+export { ADMIN_STORAGE_KEY } from "./keys"
 
 // 서버 컴포넌트 / Server Action에서 세션을 읽을 때 사용
-// cookies()로 요청에 담긴 세션 쿠키를 전달한다
-export async function createSupabaseServerClient() {
+// storageKey를 전달하면 해당 키의 쿠키를 사용한다 (어드민/프론트 세션 분리)
+export async function createSupabaseServerClient(storageKey?: string) {
     const cookieStore = await cookies()
 
     return createServerClient(
@@ -11,6 +12,7 @@ export async function createSupabaseServerClient() {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
             db: { schema: "commerce" },
+            ...(storageKey && { auth: { storageKey } }),
             cookies: {
                 getAll() {
                     return cookieStore.getAll()

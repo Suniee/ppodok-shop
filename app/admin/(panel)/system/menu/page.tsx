@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation"
-import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { createSupabaseServerClient, ADMIN_STORAGE_KEY } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { fetchMenuConfig } from "@/lib/supabase/menu"
 import { MENU_ITEMS } from "@/lib/admin-menu"
@@ -7,7 +7,7 @@ import MenuClient from "./MenuClient"
 
 export default async function MenuManagePage() {
     // 수퍼관리자만 접근 허용
-    const supabase = await createSupabaseServerClient()
+    const supabase = await createSupabaseServerClient(ADMIN_STORAGE_KEY)
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) redirect("/admin/login")

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 import AdminSidebar from "@/components/admin/AdminSidebar"
-import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { createSupabaseServerClient, ADMIN_STORAGE_KEY } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { fetchAdminUsers } from "@/lib/supabase/admins"
 import { fetchMenuConfig } from "@/lib/supabase/menu"
@@ -8,7 +8,7 @@ import type { AdminUser, AdminRole } from "@/lib/supabase/admins"
 import type { MenuConfig } from "@/lib/admin-menu"
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-    const supabase = await createSupabaseServerClient()
+    const supabase = await createSupabaseServerClient(ADMIN_STORAGE_KEY)
     const { data: { user } } = await supabase.auth.getUser()
 
     // 비로그인 상태면 로그인 페이지로
