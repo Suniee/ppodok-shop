@@ -23,9 +23,9 @@ export default function HeroBanner({ banners }: { banners: Banner[] }) {
     return (
         <div
             data-ui-id="banner-home-hero"
-            className="rounded-3xl overflow-hidden relative cursor-pointer"
+            className={`rounded-3xl overflow-hidden relative ${s.link !== "/" ? "cursor-pointer" : ""}`}
             style={{ backgroundColor: s.bg_color, transition: "background-color 0.5s ease" }}
-            onClick={() => router.push(s.link)}
+            onClick={s.link !== "/" ? () => router.push(s.link) : undefined}
         >
             <AnimatePresence mode="wait">
                 <motion.div

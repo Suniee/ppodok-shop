@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import React, { useState, useEffect, useCallback } from "react"
 import { Search, X, Star, ChevronLeft, ChevronRight, Trash2, ChevronDown, ChevronUp } from "lucide-react"
 import { fetchAdminReviewsAction, deleteAdminReviewAction, type AdminReview } from "./actions"
 
@@ -139,9 +139,8 @@ export default function AdminReviewsPage() {
                             ) : items.map((item, i) => {
                                 const isExpanded = expandedId === item.id
                                 return (
-                                    <>
+                                    <React.Fragment key={item.id}>
                                         <tr
-                                            key={item.id}
                                             className="hover:bg-gray-50 transition-colors cursor-pointer"
                                             style={{ borderBottom: "1px solid var(--toss-border)" }}
                                             onClick={() => setExpandedId(isExpanded ? null : item.id)}
@@ -201,7 +200,7 @@ export default function AdminReviewsPage() {
 
                                         {/* 리뷰 내용 펼침 행 */}
                                         {isExpanded && (
-                                            <tr key={`${item.id}-expand`} style={{ borderBottom: i < items.length - 1 ? "1px solid var(--toss-border)" : undefined }}>
+                                            <tr style={{ borderBottom: i < items.length - 1 ? "1px solid var(--toss-border)" : undefined }}>
                                                 <td colSpan={6} className="px-4 pb-4 pt-0">
                                                     <div
                                                         className="rounded-xl p-4"
@@ -225,7 +224,7 @@ export default function AdminReviewsPage() {
                                                 </td>
                                             </tr>
                                         )}
-                                    </>
+                                    </React.Fragment>
                                 )
                             })}
                         </tbody>

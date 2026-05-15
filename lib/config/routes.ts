@@ -27,7 +27,8 @@ export const routes: AppRoute[] = [
     { id: "admin-banners",    path: "/admin/banners",     title: "배너 관리",     group: "admin" },
     { id: "admin-orders",     path: "/admin/orders",      title: "주문 관리",     group: "admin" },
     { id: "admin-members",    path: "/admin/members",     title: "회원 관리",     group: "admin" },
-    { id: "admin-sales",      path: "/admin/sales",       title: "매출 관리",     group: "admin" },
+    { id: "admin-sales",      path: "/admin/sales",              title: "매출 관리",     group: "admin" },
+    { id: "admin-company",    path: "/admin/settings/company",   title: "회사 정보",     group: "admin" },
 ]
 
 /** path 패턴에서 실제 URL 생성 (예: productPath("abc-123") → "/products/abc-123") */

@@ -214,6 +214,7 @@ export default function BannersClient({ initial, categories }: { initial: Banner
                                 <select className={inputCls} style={inputStyle}
                                     value={editing.link}
                                     onChange={(e) => setEditing({ ...editing, link: e.target.value })}>
+                                    <option value="/">없음</option>
                                     <option value="/products">전체 상품 보기</option>
                                     {categories.map((c) => (
                                         <option key={c.id} value={`/products?category=${c.slug}`}>

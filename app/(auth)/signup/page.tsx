@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Eye, EyeOff, Loader2, CheckCircle2 } from "lucide-react"
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser"
-import { checkWithdrawnEmailAction } from "./actions"
+import { checkWithdrawnEmailAction, autoActivateCustomerAction } from "./actions"
 
 export default function SignupPage() {
     const router = useRouter()
@@ -62,8 +62,9 @@ export default function SignupPage() {
             return
         }
 
-        // 이메일 인증이 꺼진 경우 session이 바로 생성됨 → 홈으로 이동
-        if (data.session) {
+        // 이메일 인증이 꺼진 경우 session이 바로 생성됨 → 즉시 활성화 후 홈으로 이동
+        if (data.session && data.user) {
+            await autoActivateCustomerAction(data.user.id)
             router.push("/")
             router.refresh()
             return

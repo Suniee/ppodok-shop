@@ -30,6 +30,7 @@ export const MENU_ITEMS: MenuItemDef[] = [
     { id: "policy",         label: "정책관리",        href: "/admin/settings",               icon: "ScrollText",      parentId: null,    defaultVisibleSuper: true,  defaultVisibleGeneral: true  },
     { id: "system",         label: "시스템 설정",    href: null,                             icon: "Settings",        parentId: null,    defaultVisibleSuper: true,  defaultVisibleGeneral: false },
     { id: "system-menu",    label: "메뉴 관리",      href: "/admin/system/menu",             icon: "List",            parentId: "system",defaultVisibleSuper: true,  defaultVisibleGeneral: false },
+    { id: "system-company", label: "회사 정보",      href: "/admin/settings/company",        icon: "Building2",       parentId: "system",defaultVisibleSuper: true,  defaultVisibleGeneral: false },
 ]
 
 // ---------- 빌드 결과 타입 (사이드바에서 사용) ----------

@@ -15,11 +15,11 @@ export default function PromoBanner({ banners }: { banners: Banner[] }) {
             {/* 대형 배너 (order 1번) */}
             <motion.a
                 data-ui-id="banner-promo-main"
-                href={main.link}
+                href={main.link !== "/" ? main.link : undefined}
                 whileHover={{ scale: 1.015 }}
                 whileTap={{ scale: 0.985 }}
                 transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                className="relative overflow-hidden rounded-3xl flex items-center justify-between px-7 py-7 cursor-pointer"
+                className={`relative overflow-hidden rounded-3xl flex items-center justify-between px-7 py-7 ${main.link !== "/" ? "cursor-pointer" : ""}`}
                 style={{ backgroundColor: main.bg_color }}
             >
                 <div className="absolute -top-6 -right-6 w-36 h-36 rounded-full opacity-20" style={{ backgroundColor: "#fff" }} />
@@ -48,11 +48,11 @@ export default function PromoBanner({ banners }: { banners: Banner[] }) {
                     <motion.a
                         key={b.id}
                         data-ui-id={`banner-promo-${b.id}`}
-                        href={b.link}
+                        href={b.link !== "/" ? b.link : undefined}
                         whileHover={{ scale: 1.015 }}
                         whileTap={{ scale: 0.985 }}
                         transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                        className="rounded-3xl flex items-center justify-between px-6 py-5 cursor-pointer"
+                        className={`rounded-3xl flex items-center justify-between px-6 py-5 ${b.link !== "/" ? "cursor-pointer" : ""}`}
                         style={{ backgroundColor: b.bg_color, border: b.bg_color === "#ffffff" ? "1px solid var(--toss-border)" : "none" }}
                     >
                         <div>

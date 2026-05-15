@@ -3,6 +3,7 @@
 import { useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser"
+import { autoActivateCustomerAction } from "@/app/(auth)/signup/actions"
 import { Suspense } from "react"
 
 function ConfirmEmailHandler() {
@@ -19,6 +20,9 @@ function ConfirmEmailHandler() {
                 // Implicit 흐름: 해시에서 자동 처리, 세션 확인 대기
                 await new Promise((r) => setTimeout(r, 300))
             }
+            // 이메일 인증 완료 시점에 customer 상태 즉시 활성화
+            const { data: { user } } = await supabase.auth.getUser()
+            if (user) await autoActivateCustomerAction(user.id)
             window.location.replace("/?toast=signup_confirmed")
         }
 

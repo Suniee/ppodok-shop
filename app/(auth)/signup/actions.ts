@@ -12,3 +12,13 @@ export async function checkWithdrawnEmailAction(email: string): Promise<boolean>
         .maybeSingle()
     return !!data
 }
+
+// 프론트 회원가입 완료 후 즉시 활성화 — customer 역할만 적용 (어드민 승인 흐름 보호)
+export async function autoActivateCustomerAction(userId: string): Promise<void> {
+    const admin = createAdminClient()
+    await admin
+        .from("profiles")
+        .update({ status: "active" })
+        .eq("id", userId)
+        .eq("role", "customer")
+}
