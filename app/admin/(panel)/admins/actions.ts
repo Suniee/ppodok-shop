@@ -71,6 +71,46 @@ export async function demoteAdminAction(
     }
 }
 
+import type { AdminUser } from "@/lib/supabase/admins"
+
+export async function fetchAdminUsersPagedAction(
+    page: number,
+    pageSize: number,
+    roleFilter: "all" | "super" | "general",
+    query: string,
+): Promise<{ items: AdminUser[]; total: number }> {
+    const admin = createAdminClient()
+    const from  = (page - 1) * pageSize
+    const to    = from + pageSize - 1
+    const q     = query.trim()
+
+    let builder = admin
+        .from("profiles")
+        .select("id, email, name, phone, status, admin_role, created_at", { count: "exact" })
+        .eq("role", "admin")
+        .order("created_at", { ascending: true })
+        .range(from, to)
+
+    if (roleFilter !== "all") builder = builder.eq("admin_role", roleFilter)
+    if (q) builder = builder.or(`name.ilike.%${q}%,email.ilike.%${q}%`)
+
+    const { data, count, error } = await builder
+    if (error || !data) return { items: [], total: 0 }
+
+    const items: AdminUser[] = (data as Record<string, unknown>[]).map((p) => ({
+        id:           p.id as string,
+        email:        p.email as string,
+        name:         p.name as string | null,
+        phone:        p.phone as string | null,
+        status:       p.status as AdminUser["status"],
+        createdAt:    p.created_at as string,
+        adminRole:    ((p.admin_role ?? "general") as AdminUser["adminRole"]),
+        isSuperAdmin: (p.admin_role ?? "general") === "super",
+    }))
+
+    return { items, total: count ?? 0 }
+}
+
 // 이름·전화번호·등급 수정 — 수퍼관리자 포함 모든 관리자 허용
 export async function updateAdminProfileAction(
     id: string,

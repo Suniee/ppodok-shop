@@ -10,6 +10,7 @@ import type { TossTransaction } from "@/lib/toss"
 import type { AdminPayment } from "@/lib/supabase/payments"
 import { resavePaymentAction, cancelPaymentAction, receiveTossDataAction } from "./actions"
 import LoadingOverlay from "@/components/admin/LoadingOverlay"
+import AdminPagination from "@/components/admin/AdminPagination"
 
 type MatchStatus = "matched" | "mismatch" | "toss_only" | "db_only"
 
@@ -114,10 +115,12 @@ interface Props {
 
 export default function ReconcileClient({ tossTransactions, dbPayments, initialStart, initialEnd, tossApprovedTotal, tossApprovedCount, dbApprovedTotal, dbApprovedCount }: Props) {
     const router = useRouter()
-    const [start,  setStart]  = useState(initialStart)
-    const [end,    setEnd]    = useState(initialEnd)
-    const [tab,    setTab]    = useState<MatchStatus | "all">("all")
-    const [search, setSearch] = useState("")
+    const [start,    setStart]    = useState(initialStart)
+    const [end,      setEnd]      = useState(initialEnd)
+    const [tab,      setTab]      = useState<MatchStatus | "all">("all")
+    const [search,   setSearch]   = useState("")
+    const [page,     setPage]     = useState(1)
+    const [pageSize, setPageSize] = useState(20)
     const [isPending, startTransition] = useTransition()
     const [isReceiving, startReceive] = useTransition()
     const [receiveResult, setReceiveResult] = useState<{ saved: number; errors: string[]; message: string } | null>(null)
@@ -241,6 +244,11 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
         toss_only: rows.filter((r) => r.match === "toss_only").length,
         db_only:   rows.filter((r) => r.match === "db_only").length,
     }), [rows])
+
+    const pagedRows = useMemo(
+        () => filtered.slice((page - 1) * pageSize, page * pageSize),
+        [filtered, page, pageSize]
+    )
 
     const diff = tossApprovedTotal - dbApprovedTotal
 
@@ -391,7 +399,7 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
                         <input
                             type="text"
                             value={search}
-                            onChange={(e) => setSearch(e.target.value)}
+                            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
                             placeholder="paymentKey, 주문번호, 주문명 검색"
                             className="bg-transparent text-xs outline-none flex-1"
                             style={{ color: "var(--toss-text-primary)" }}
@@ -422,7 +430,7 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
                     {tabs.map((t) => (
                         <button
                             key={t.key}
-                            onClick={() => setTab(t.key)}
+                            onClick={() => { setTab(t.key); setPage(1) }}
                             className="flex-shrink-0 px-3.5 py-2 text-xs font-semibold rounded-xl transition-colors"
                             style={{
                                 backgroundColor: tab === t.key ? "var(--toss-blue)" : "transparent",
@@ -455,13 +463,13 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
                                 </tr>
                             </thead>
                             <tbody>
-                                {filtered.map((r, i) => {
+                                {pagedRows.map((r, i) => {
                                     const meta = MATCH_META[r.match]
                                     const amountMismatch = r.tossAmount !== null && r.dbAmount !== null && r.tossAmount !== r.dbAmount
                                     return (
                                         <tr key={r.paymentKey}
                                             className="hover:bg-gray-50 transition-colors"
-                                            style={{ borderBottom: i < filtered.length - 1 ? "1px solid var(--toss-border)" : undefined }}>
+                                            style={{ borderBottom: i < pagedRows.length - 1 ? "1px solid var(--toss-border)" : undefined }}>
 
                                             {/* 대사 상태 */}
                                             <td className="px-4 py-3">
@@ -603,11 +611,19 @@ export default function ReconcileClient({ tossTransactions, dbPayments, initialS
                 </div>
 
                 {filtered.length > 0 && (
-                    <div className="px-5 py-3 flex items-center justify-between"
+                    <div className="px-5 py-3 space-y-3"
                         style={{ borderTop: "1px solid var(--toss-border)" }}>
                         <p className="text-xs" style={{ color: "var(--toss-text-tertiary)" }}>
-                            {filtered.length}건 표시 중
+                            총 {filtered.length}건 중 {pagedRows.length}건 표시
                         </p>
+                        <AdminPagination
+                            page={page}
+                            pageSize={pageSize}
+                            total={filtered.length}
+                            pageSizeId="select-reconcile-pagesize"
+                            onPageChange={setPage}
+                            onSizeChange={(s) => { setPageSize(s); setPage(1) }}
+                        />
                     </div>
                 )}
             </div>

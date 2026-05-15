@@ -1,15 +1,17 @@
 "use client"
 
-import { useState, useTransition, useMemo, useEffect } from "react"
+import { useState, useCallback, useEffect, useTransition } from "react"
 import { useSearchParams } from "next/navigation"
 import {
-    RefreshCw, CheckCircle2, XCircle, Clock, Search,
-    Package, ChevronDown, ChevronUp, ArrowLeftRight, Undo2,
+    CheckCircle2, XCircle, Clock, Search,
+    Package, ChevronDown, ChevronUp,
 } from "lucide-react"
 import type { AdminCancelRequest, CancelRequestStatus, CancelRequestType } from "@/lib/supabase/cancelRequests"
-import { CANCEL_REQUEST_TYPE_LABEL, CANCEL_REQUEST_STATUS_LABEL } from "@/lib/supabase/cancelRequests"
-import { approveCancelRequestAction, rejectCancelRequestAction } from "./actions"
+import { CANCEL_REQUEST_TYPE_LABEL } from "@/lib/supabase/cancelRequests"
+import { approveCancelRequestAction, rejectCancelRequestAction, fetchCancelRequestsPagedAction } from "./actions"
+import type { CancelRequestCounts } from "./actions"
 import LoadingOverlay from "@/components/admin/LoadingOverlay"
+import AdminPagination from "@/components/admin/AdminPagination"
 
 function toKSTDateString(date: Date): string {
     return new Date(date.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
@@ -303,48 +305,59 @@ function RequestRow({
 }
 
 // ── 메인 컴포넌트 ────────────────────────────────────────────────
-export default function CancelRequestsClient({
-    requests: initial,
-}: {
-    requests: AdminCancelRequest[]
-}) {
-    const searchParams  = useSearchParams()
-    const [requests, setRequests]  = useState<AdminCancelRequest[]>(initial)
-    const [statusFilter, setFilter] = useState<CancelRequestStatus | "all">("pending")
-    const [search, setSearch]      = useState("")
+export default function CancelRequestsClient() {
+    const searchParams = useSearchParams()
 
     const defaultRange = getPresetRange("1month")
-    const [inputStart,  setInputStart]  = useState(defaultRange.start)
-    const [inputEnd,    setInputEnd]    = useState(defaultRange.end)
-    const [activeStart, setActiveStart] = useState<string | null>(defaultRange.start)
-    const [activeEnd,   setActiveEnd]   = useState<string | null>(defaultRange.end)
-    const [isFetching,  startFetch]     = useTransition()
+    const [items,        setItems]       = useState<AdminCancelRequest[]>([])
+    const [total,        setTotal]       = useState(0)
+    const [counts,       setCounts]      = useState<CancelRequestCounts>({ all: 0, pending: 0, approved: 0, rejected: 0 })
+    const [page,         setPage]        = useState(1)
+    const [pageSize,     setPageSize]    = useState(20)
+    const [loading,      setLoading]     = useState(false)
+    const [statusFilter, setStatusFilter] = useState<CancelRequestStatus | "all">("pending")
+    const [search,       setSearch]      = useState("")
+    const [inputStart,   setInputStart]  = useState(defaultRange.start)
+    const [inputEnd,     setInputEnd]    = useState(defaultRange.end)
+    const [activeStart,  setActiveStart] = useState<string | undefined>(defaultRange.start)
+    const [activeEnd,    setActiveEnd]   = useState<string | undefined>(defaultRange.end)
 
     // 주문 조회 화면에서 특정 주문의 교환/환불 배지를 클릭하면 orderId로 자동 검색
     useEffect(() => {
         const orderId = searchParams.get("orderId")
         if (orderId) {
             setSearch(orderId.slice(0, 8).toUpperCase())
-            setFilter("all")
+            setStatusFilter("all")
         }
     }, [searchParams])
 
+    const load = useCallback(async () => {
+        setLoading(true)
+        try {
+            const res = await fetchCancelRequestsPagedAction(page, pageSize, statusFilter, search, activeStart, activeEnd)
+            setItems(res.items)
+            setTotal(res.total)
+            setCounts(res.counts)
+        } finally {
+            setLoading(false)
+        }
+    }, [page, pageSize, statusFilter, search, activeStart, activeEnd])
+
+    useEffect(() => { load() }, [load])
+
     const handleFetch = () => {
-        startFetch(() => {
-            setActiveStart(inputStart)
-            setActiveEnd(inputEnd)
-        })
+        setActiveStart(inputStart)
+        setActiveEnd(inputEnd)
+        setPage(1)
     }
 
-    // 초기화: 날짜 필터 해제 → 전체 기간 표시
     const handleReset = () => {
-        startFetch(() => {
-            const range = getPresetRange("1month")
-            setInputStart(range.start)
-            setInputEnd(range.end)
-            setActiveStart(null)
-            setActiveEnd(null)
-        })
+        const range = getPresetRange("1month")
+        setInputStart(range.start)
+        setInputEnd(range.end)
+        setActiveStart(undefined)
+        setActiveEnd(undefined)
+        setPage(1)
     }
 
     const applyPreset = (preset: "today" | "7d" | "1month" | "3month") => {
@@ -353,39 +366,14 @@ export default function CancelRequestsClient({
         setInputEnd(range.end)
         setActiveStart(range.start)
         setActiveEnd(range.end)
+        setPage(1)
     }
 
-    const showReset = activeStart !== null || activeEnd !== null
-
-    const filtered = useMemo(() => {
-        const startMs = activeStart ? new Date(activeStart + "T00:00:00+09:00").getTime() : 0
-        const endMs   = activeEnd   ? new Date(activeEnd   + "T23:59:59+09:00").getTime() : Infinity
-        return requests.filter((r) => {
-            const ms = new Date(r.createdAt).getTime()
-            if (ms < startMs || ms > endMs) return false
-            const matchStatus = statusFilter === "all" || r.status === statusFilter
-            const q = search.trim().toLowerCase()
-            const matchSearch = !q
-                || r.recipientName.toLowerCase().includes(q)
-                || r.orderId.toLowerCase().includes(q)
-                || r.orderId.slice(0, 8).toUpperCase().toLowerCase().includes(q)
-                || r.reason.toLowerCase().includes(q)
-            return matchStatus && matchSearch
-        })
-    }, [requests, statusFilter, search, activeStart, activeEnd])
-
-    const counts = {
-        all:      requests.length,
-        pending:  requests.filter((r) => r.status === "pending").length,
-        approved: requests.filter((r) => r.status === "approved").length,
-        rejected: requests.filter((r) => r.status === "rejected").length,
+    const handleUpdate = (_id: string, _status: CancelRequestStatus, _note: string | null) => {
+        load()
     }
 
-    const handleUpdate = (id: string, status: CancelRequestStatus, note: string | null) => {
-        setRequests((prev) => prev.map((r) =>
-            r.id === id ? { ...r, status, adminNote: note } : r
-        ))
-    }
+    const showReset = activeStart !== undefined || activeEnd !== undefined
 
     const tabs: { key: CancelRequestStatus | "all"; label: string; count: number }[] = [
         { key: "all",      label: "전체",     count: counts.all },
@@ -396,7 +384,7 @@ export default function CancelRequestsClient({
 
     return (
         <div className="p-7 space-y-6">
-            <LoadingOverlay show={isFetching} label="조회 중..." />
+            <LoadingOverlay show={loading} label="조회 중..." />
 
             {/* 헤더 */}
             <div className="flex items-start justify-between">
@@ -486,7 +474,7 @@ export default function CancelRequestsClient({
                         <input
                             type="text"
                             value={search}
-                            onChange={(e) => setSearch(e.target.value)}
+                            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
                             placeholder="이름, 주문번호, 사유 검색"
                             className="bg-transparent text-xs outline-none flex-1"
                             style={{ color: "var(--toss-text-primary)" }}
@@ -519,7 +507,7 @@ export default function CancelRequestsClient({
                     {tabs.map((t) => (
                         <button
                             key={t.key}
-                            onClick={() => setFilter(t.key)}
+                            onClick={() => { setStatusFilter(t.key); setPage(1) }}
                             className="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl transition-colors"
                             style={{
                                 backgroundColor: statusFilter === t.key ? "var(--toss-blue)" : "transparent",
@@ -543,7 +531,7 @@ export default function CancelRequestsClient({
 
                 {/* 테이블 */}
                 <div className="overflow-x-auto">
-                    {filtered.length === 0 ? (
+                    {items.length === 0 ? (
                         <div className="py-16 text-center text-sm" style={{ color: "var(--toss-text-tertiary)" }}>
                             <Package className="size-10 mx-auto mb-3 opacity-30" />
                             {statusFilter === "pending" ? "처리 대기 중인 신청이 없습니다" : "조건에 맞는 신청이 없습니다"}
@@ -562,7 +550,7 @@ export default function CancelRequestsClient({
                                 </tr>
                             </thead>
                             <tbody>
-                                {filtered.map((r) => (
+                                {items.map((r) => (
                                     <RequestRow
                                         key={r.id}
                                         request={r}
@@ -574,9 +562,19 @@ export default function CancelRequestsClient({
                     )}
                 </div>
 
-                {filtered.length > 0 && (
-                    <div className="px-5 py-3" style={{ borderTop: "1px solid var(--toss-border)" }}>
-                        <p className="text-xs" style={{ color: "var(--toss-text-tertiary)" }}>{filtered.length}건 표시 중</p>
+                {total > 0 && (
+                    <div className="px-5 py-3 space-y-3" style={{ borderTop: "1px solid var(--toss-border)" }}>
+                        <p className="text-xs" style={{ color: "var(--toss-text-tertiary)" }}>
+                            총 {total}건 중 {items.length}건 표시
+                        </p>
+                        <AdminPagination
+                            page={page}
+                            pageSize={pageSize}
+                            total={total}
+                            pageSizeId="select-cancel-requests-pagesize"
+                            onPageChange={setPage}
+                            onSizeChange={(s) => { setPageSize(s); setPage(1) }}
+                        />
                     </div>
                 )}
             </div>

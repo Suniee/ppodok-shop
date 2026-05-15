@@ -58,6 +58,22 @@ export async function deleteCategoryAction(id: number): Promise<void> {
     if (error) throw new Error(error.message)
 }
 
+export async function fetchCategoriesPagedAction(
+    page: number,
+    pageSize: number,
+): Promise<{ items: Category[]; total: number }> {
+    const db = createAdminClient()
+    const from = (page - 1) * pageSize
+    const to   = from + pageSize - 1
+    const { data, count, error } = await db
+        .from("categories")
+        .select("*", { count: "exact" })
+        .order("sort_order", { ascending: true })
+        .range(from, to)
+    if (error || !data) return { items: [], total: 0 }
+    return { items: (data as Record<string, unknown>[]).map(toCategory), total: count ?? 0 }
+}
+
 export async function updateCategoryOrdersAction(categories: Category[]): Promise<void> {
     const db = createAdminClient()
     await Promise.all(

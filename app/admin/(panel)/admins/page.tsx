@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation"
 import { Suspense } from "react"
 import AdminsClient from "./AdminsClient"
-import { fetchAdminUsers, fetchPendingUsers } from "@/lib/supabase/admins"
+import { fetchPendingUsers } from "@/lib/supabase/admins"
 import { createSupabaseServerClient, ADMIN_STORAGE_KEY } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 
@@ -23,15 +23,12 @@ export default async function AdminsPage() {
         redirect("/admin/dashboard")
     }
 
-    const [admins, pending] = await Promise.all([
-        fetchAdminUsers().catch(() => []),
-        fetchPendingUsers().catch(() => []),
-    ])
+    const pending = await fetchPendingUsers().catch(() => [])
 
     return (
         <div data-ui-id="page-admin-admins">
             <Suspense>
-                <AdminsClient admins={admins} pending={pending} />
+                <AdminsClient pending={pending} />
             </Suspense>
         </div>
     )

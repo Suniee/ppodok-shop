@@ -10,6 +10,7 @@ import {
   deleteCategoryAction,
   updateCategoryOrdersAction,
 } from "./actions"
+import AdminPagination from "@/components/admin/AdminPagination"
 
 const iconBgs = [
   "#EBF3FF", "#E8F8F5", "#FFF3E0", "#FCE4EC",
@@ -45,6 +46,8 @@ export default function CategoriesPage() {
   const [isNew, setIsNew]     = useState(false)
   const [saving, setSaving]   = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [page, setPage]       = useState(1)
+  const [pageSize, setPageSize] = useState(20)
 
   const nameRef = useRef<HTMLInputElement>(null)
   const slugRef = useRef<HTMLInputElement>(null)
@@ -120,6 +123,8 @@ export default function CategoriesPage() {
 
   if (!mounted) return null
 
+  const pagedCategories = categories.slice((page - 1) * pageSize, page * pageSize)
+
   return (
     <div data-ui-id="page-admin-categories" className="p-7 space-y-5">
       {/* Header */}
@@ -178,9 +183,11 @@ export default function CategoriesPage() {
               </tr>
             </thead>
             <tbody>
-              {categories.map((cat, i) => (
+              {pagedCategories.map((cat, localIdx) => {
+                const i = (page - 1) * pageSize + localIdx
+                return (
                 <tr key={cat.id} className="hover:bg-gray-50 transition-colors"
-                  style={{ borderBottom: i < categories.length - 1 ? "1px solid var(--toss-border)" : undefined }}>
+                  style={{ borderBottom: localIdx < pagedCategories.length - 1 ? "1px solid var(--toss-border)" : undefined }}>
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-1">
                       <span className="text-xs font-mono w-5 text-center" style={{ color: "var(--toss-text-tertiary)" }}>{cat.sortOrder}</span>
@@ -231,10 +238,22 @@ export default function CategoriesPage() {
                     </div>
                   </td>
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         </div>
+        {categories.length > 0 && (
+          <div className="px-5 py-3" style={{ borderTop: "1px solid var(--toss-border)" }}>
+            <AdminPagination
+              page={page}
+              pageSize={pageSize}
+              total={categories.length}
+              pageSizeId="select-categories-pagesize"
+              onPageChange={setPage}
+              onSizeChange={(s) => { setPageSize(s); setPage(1) }}
+            />
+          </div>
+        )}
       </div>
 
       {/* Drawer */}

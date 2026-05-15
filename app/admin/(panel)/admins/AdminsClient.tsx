@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition, useMemo, useEffect } from "react"
+import { useState, useTransition, useMemo, useEffect, useCallback } from "react"
 import { ShieldCheck, Shield, Clock, CheckCircle2, XCircle, AlertCircle, Search, Pencil } from "lucide-react"
 import type { AdminUser, PendingUser, AdminRole } from "@/lib/supabase/admins"
 import {
@@ -9,7 +9,9 @@ import {
     toggleAdminStatusAction,
     demoteAdminAction,
     updateAdminProfileAction,
+    fetchAdminUsersPagedAction,
 } from "./actions"
+import AdminPagination from "@/components/admin/AdminPagination"
 
 type Tab        = "pending" | "list"
 type RoleFilter = "all" | "super" | "general"
@@ -288,16 +290,18 @@ function EditAdminModal({
 
 // ── 메인 컴포넌트 ────────────────────────────────────────────────────────────
 export default function AdminsClient({
-    admins: initialAdmins,
     pending: initialPending,
 }: {
-    admins: AdminUser[]
     pending: PendingUser[]
 }) {
     const [tab, setTab]             = useState<Tab>("pending")
     const [roleFilter, setRoleFilter] = useState<RoleFilter>("all")
     const [search, setSearch]       = useState("")
-    const [admins, setAdmins]       = useState(initialAdmins)
+    const [items, setItems]         = useState<AdminUser[]>([])
+    const [total, setTotal]         = useState(0)
+    const [page, setPage]           = useState(1)
+    const [pageSize, setPageSize]   = useState(20)
+    const [listLoading, setListLoading] = useState(false)
     const [pending, setPending]     = useState(initialPending)
     const [approveTarget, setApproveTarget] = useState<PendingUser | null>(null)
 
@@ -306,11 +310,22 @@ export default function AdminsClient({
     const [actionError, setActionError] = useState<string | null>(null)
     const [, startTransition]       = useTransition()
 
-    // revalidatePath 이후 서버에서 새 데이터가 오면 state에 반영
-    useEffect(() => { setAdmins(initialAdmins) }, [initialAdmins])
     useEffect(() => { setPending(initialPending) }, [initialPending])
 
-    // ── 검색 + 등급 필터 ────────────────────────────────────────────────────
+    const load = useCallback(async () => {
+        setListLoading(true)
+        try {
+            const res = await fetchAdminUsersPagedAction(page, pageSize, roleFilter, search)
+            setItems(res.items)
+            setTotal(res.total)
+        } finally {
+            setListLoading(false)
+        }
+    }, [page, pageSize, roleFilter, search])
+
+    useEffect(() => { load() }, [load])
+
+    // ── 검색 필터 (신청 대기 탭, 소량이므로 클라이언트 필터링) ─────────────
     const filteredPending = useMemo(() => {
         const q = search.trim().toLowerCase()
         if (!q) return pending
@@ -322,50 +337,14 @@ export default function AdminsClient({
         )
     }, [pending, search])
 
-    const filteredAdmins = useMemo(() => {
-        const q = search.trim().toLowerCase()
-        let list = admins
-        if (roleFilter !== "all") {
-            list = list.filter((a) => a.adminRole === roleFilter)
-        }
-        if (!q) return list
-        return list.filter(
-            (a) =>
-                a.name?.toLowerCase().includes(q) ||
-                a.email.toLowerCase().includes(q)
-        )
-    }, [admins, search, roleFilter])
-
     // ── 신청 승인 ──────────────────────────────────────────────────────────
-    const handleApproved = (id: string, adminRole: AdminRole) => {
-        // functional update로 최신 pending을 읽어 stale closure 방지
-        let approved: PendingUser | undefined
-        setPending((prev) => {
-            approved = prev.find((u) => u.id === id)
-            return prev.filter((u) => u.id !== id)
-        })
-
-        // 관리자 목록에 즉시 추가 (revalidatePath 이후 useEffect가 확정 데이터로 덮어씀)
-        setAdmins((prev) => {
-            if (!approved) return prev
-            return [
-                ...prev,
-                {
-                    id:           approved.id,
-                    email:        approved.email,
-                    name:         approved.name,
-                    phone:        approved.phone,
-                    status:       "active",
-                    createdAt:    approved.createdAt,
-                    adminRole:    adminRole,
-                    isSuperAdmin: adminRole === "super",
-                },
-            ]
-        })
-        // 승인된 관리자를 바로 볼 수 있도록 관리자 목록 탭으로 전환
+    const handleApproved = (id: string, _adminRole: AdminRole) => {
+        setPending((prev) => prev.filter((u) => u.id !== id))
+        // 승인 후 관리자 목록 탭으로 전환하고 데이터 새로고침
         setTab("list")
         setSearch("")
         setRoleFilter("all")
+        setPage(1)
         setApproveTarget(null)
     }
 
@@ -387,21 +366,11 @@ export default function AdminsClient({
     // ── 관리자 상태 토글 ───────────────────────────────────────────────────
     const handleToggleStatus = (admin: AdminUser) => {
         setActionError(null)
-        // 낙관적 업데이트
-        setAdmins((prev) =>
-            prev.map((a) =>
-                a.id === admin.id
-                    ? { ...a, status: a.status === "active" ? "inactive" : "active" }
-                    : a
-            )
-        )
         startTransition(async () => {
             const res = await toggleAdminStatusAction(admin.id, admin.email, admin.status)
-            if (!res.ok) {
-                // 롤백
-                setAdmins((prev) =>
-                    prev.map((a) => (a.id === admin.id ? admin : a))
-                )
+            if (res.ok) {
+                load()
+            } else {
                 setActionError(res.message ?? "오류가 발생했습니다.")
             }
         })
@@ -413,7 +382,7 @@ export default function AdminsClient({
         startTransition(async () => {
             const res = await demoteAdminAction(admin.id, admin.email)
             if (res.ok) {
-                setAdmins((prev) => prev.filter((a) => a.id !== admin.id))
+                load()
             } else {
                 setActionError(res.message ?? "오류가 발생했습니다.")
             }
@@ -421,15 +390,9 @@ export default function AdminsClient({
     }
 
     // ── 관리자 정보 수정 완료 ─────────────────────────────────────────────
-    const handleEditSaved = (id: string, name: string | null, phone: string | null, adminRole: AdminRole) => {
-        setAdmins((prev) =>
-            prev.map((a) =>
-                a.id === id
-                    ? { ...a, name, phone, adminRole, isSuperAdmin: adminRole === "super" }
-                    : a
-            )
-        )
+    const handleEditSaved = (_id: string, _name: string | null, _phone: string | null, _adminRole: AdminRole) => {
         setEditTarget(null)
+        load()
     }
 
     // ── 탭 전환 시 검색·필터 초기화 ──────────────────────────────────────
@@ -437,16 +400,17 @@ export default function AdminsClient({
         setTab(t)
         setSearch("")
         setRoleFilter("all")
+        setPage(1)
         setActionError(null)
     }
 
     // ── 요약 카드 수치 ─────────────────────────────────────────────────────
-    const activeCount   = admins.filter((a) => a.status === "active").length
-    const inactiveCount = admins.filter((a) => a.status !== "active").length
+    const activeCount   = items.filter((a) => a.status === "active").length
+    const inactiveCount = items.filter((a) => a.status !== "active").length
 
     const TABS: { key: Tab; label: string; count?: number }[] = [
         { key: "pending", label: "신청 대기", count: pending.length },
-        { key: "list",    label: "관리자 목록", count: admins.length },
+        { key: "list",    label: "관리자 목록", count: total },
     ]
 
     return (
@@ -492,7 +456,7 @@ export default function AdminsClient({
                         },
                         {
                             label: "전체 관리자",
-                            value: admins.length,
+                            value: total,
                             icon: Shield,
                             highlight: false,
                             color: "var(--toss-text-primary)",
@@ -598,7 +562,7 @@ export default function AdminsClient({
                                 type="text"
                                 placeholder="이름, 이메일 검색"
                                 value={search}
-                                onChange={(e) => setSearch(e.target.value)}
+                                onChange={(e) => { setSearch(e.target.value); setPage(1) }}
                                 className="pl-8 pr-3 py-1.5 text-sm rounded-xl outline-none"
                                 style={{
                                     backgroundColor: "var(--toss-bg-secondary)",
@@ -618,14 +582,14 @@ export default function AdminsClient({
                         >
                             {(
                                 [
-                                    { key: "all",     label: "전체",      count: admins.length },
-                                    { key: "super",   label: "수퍼관리자", count: admins.filter((a) => a.adminRole === "super").length },
-                                    { key: "general", label: "일반관리자", count: admins.filter((a) => a.adminRole === "general").length },
-                                ] as { key: RoleFilter; label: string; count: number }[]
-                            ).map(({ key, label, count }) => (
+                                    { key: "all",     label: "전체" },
+                                    { key: "super",   label: "수퍼관리자" },
+                                    { key: "general", label: "일반관리자" },
+                                ] as { key: RoleFilter; label: string }[]
+                            ).map(({ key, label }) => (
                                 <button
                                     key={key}
-                                    onClick={() => setRoleFilter(key)}
+                                    onClick={() => { setRoleFilter(key); setPage(1) }}
                                     className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-colors"
                                     style={{
                                         backgroundColor: roleFilter === key ? "var(--toss-blue)" : "transparent",
@@ -633,15 +597,6 @@ export default function AdminsClient({
                                     }}
                                 >
                                     {label}
-                                    <span
-                                        className="px-1.5 py-0.5 rounded-full font-bold"
-                                        style={{
-                                            backgroundColor: roleFilter === key ? "rgba(255,255,255,0.25)" : "var(--toss-border)",
-                                            color:           roleFilter === key ? "#fff" : "var(--toss-text-secondary)",
-                                        }}
-                                    >
-                                        {count}
-                                    </span>
                                 </button>
                             ))}
                         </div>
@@ -755,14 +710,20 @@ export default function AdminsClient({
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredAdmins.length === 0 ? (
+                                {listLoading ? (
+                                    <tr>
+                                        <td colSpan={6} className="px-5 py-12 text-center text-sm" style={{ color: "var(--toss-text-tertiary)" }}>
+                                            불러오는 중...
+                                        </td>
+                                    </tr>
+                                ) : items.length === 0 ? (
                                     <tr>
                                         <td colSpan={6} className="px-5 py-12 text-center text-sm" style={{ color: "var(--toss-text-tertiary)" }}>
                                             등록된 관리자가 없습니다.
                                         </td>
                                     </tr>
                                 ) : (
-                                    filteredAdmins.map((admin) => (
+                                    items.map((admin) => (
                                         <tr
                                             key={admin.id}
                                             style={{
@@ -854,6 +815,21 @@ export default function AdminsClient({
                                 )}
                             </tbody>
                         </table>
+                    )}
+                    {tab === "list" && total > 0 && (
+                        <div className="px-5 py-3 space-y-2" style={{ borderTop: "1px solid var(--toss-border)" }}>
+                            <p className="text-xs" style={{ color: "var(--toss-text-tertiary)" }}>
+                                총 {total}건 중 {items.length}건 표시
+                            </p>
+                            <AdminPagination
+                                page={page}
+                                pageSize={pageSize}
+                                total={total}
+                                pageSizeId="select-admins-pagesize"
+                                onPageChange={setPage}
+                                onSizeChange={(s) => { setPageSize(s); setPage(1) }}
+                            />
+                        </div>
                     )}
                 </div>
             </div>

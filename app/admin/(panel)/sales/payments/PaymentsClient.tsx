@@ -1,14 +1,21 @@
 "use client"
 
-import { useState, useMemo, useTransition } from "react"
+import { useState, useTransition, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import {
     CreditCard, CheckCircle2, XCircle, Clock,
     TrendingUp, Search, ExternalLink, RefreshCw,
 } from "lucide-react"
-import { syncMissingPaymentsAction } from "./actions"
-import type { AdminPayment } from "@/lib/supabase/payments"
+import { syncMissingPaymentsAction, fetchPaymentsPagedAction } from "./actions"
+import type { PaymentStats } from "./actions"
+import AdminPagination from "@/components/admin/AdminPagination"
 import LoadingOverlay from "@/components/admin/LoadingOverlay"
+
+type AdminPayment = {
+    id: string; orderId: string; paymentKey: string; orderName: string
+    method: string; provider: string | null; amount: number; status: string
+    requestedAt: string | null; approvedAt: string | null; createdAt: string
+}
 
 function toKSTDateString(date: Date): string {
     return new Date(date.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
@@ -71,78 +78,73 @@ function SummaryCard({
     )
 }
 
-export default function PaymentsClient({ payments }: { payments: AdminPayment[] }) {
+export default function PaymentsClient() {
     const router = useRouter()
     const defaultRange = getPresetRange("1month")
+    const [items,    setItems]    = useState<AdminPayment[]>([])
+    const [total,    setTotal]    = useState(0)
+    const [stats,    setStats]    = useState<PaymentStats>({ doneAmount: 0, doneCount: 0, cancelCount: 0, cancelAmount: 0, totalCount: 0 })
+    const [page,     setPage]     = useState(1)
+    const [pageSize, setPageSize] = useState(20)
+    const [loading,  setLoading]  = useState(true)
+
     const [inputStart,  setInputStart]  = useState(defaultRange.start)
     const [inputEnd,    setInputEnd]    = useState(defaultRange.end)
     const [activeStart, setActiveStart] = useState<string | null>(defaultRange.start)
     const [activeEnd,   setActiveEnd]   = useState<string | null>(defaultRange.end)
     const [search,      setSearch]      = useState("")
     const [isSyncing,   startSync]      = useTransition()
-    const [isFetching,  startFetch]     = useTransition()
     const [syncResult,  setSyncResult]  = useState<{ synced: number; skipped: number; errors: string[] } | null>(null)
+
+    const load = useCallback(async () => {
+        setLoading(true)
+        const result = await fetchPaymentsPagedAction(
+            page, pageSize,
+            activeStart ?? undefined,
+            activeEnd   ?? undefined,
+            search || undefined,
+        )
+        setItems(result.items)
+        setTotal(result.total)
+        setStats(result.stats)
+        setLoading(false)
+    }, [page, pageSize, activeStart, activeEnd, search])
+
+    useEffect(() => { load() }, [load])
 
     const handleSync = () => {
         startSync(async () => {
             const result = await syncMissingPaymentsAction()
             setSyncResult(result)
-            if (result.synced > 0) router.refresh()
+            if (result.synced > 0) { router.refresh(); load() }
         })
     }
 
     const handleFetch = () => {
-        startFetch(() => {
-            setActiveStart(inputStart)
-            setActiveEnd(inputEnd)
-        })
+        setActiveStart(inputStart)
+        setActiveEnd(inputEnd)
+        setPage(1)
     }
 
-    // 초기화: 날짜 필터 해제 → 전체 기간 표시
     const handleReset = () => {
-        startFetch(() => {
-            const range = getPresetRange("1month")
-            setInputStart(range.start)
-            setInputEnd(range.end)
-            setActiveStart(null)
-            setActiveEnd(null)
-        })
+        const range = getPresetRange("1month")
+        setInputStart(range.start); setInputEnd(range.end)
+        setActiveStart(null); setActiveEnd(null)
+        setPage(1)
     }
 
     const applyPreset = (preset: "today" | "7d" | "1month" | "3month") => {
         const range = getPresetRange(preset)
-        setInputStart(range.start)
-        setInputEnd(range.end)
-        setActiveStart(range.start)
-        setActiveEnd(range.end)
+        setInputStart(range.start); setInputEnd(range.end)
+        setActiveStart(range.start); setActiveEnd(range.end)
+        setPage(1)
     }
 
-    // activeStart/End가 설정된 경우(날짜 필터 활성)에만 초기화 버튼 표시
     const showReset = activeStart !== null || activeEnd !== null
-
-    // approvedAt 기준 날짜 필터링, 없으면 createdAt
-    const filtered = useMemo(() => {
-        const startMs = activeStart ? new Date(activeStart + "T00:00:00+09:00").getTime() : 0
-        const endMs   = activeEnd   ? new Date(activeEnd   + "T23:59:59+09:00").getTime() : Infinity
-        const q = search.trim().toLowerCase()
-        return payments.filter((p) => {
-            const dateStr = p.approvedAt ?? p.createdAt
-            const ms = new Date(dateStr).getTime()
-            if (ms < startMs || ms > endMs) return false
-            return !q
-                || p.orderId.toLowerCase().includes(q)
-                || p.orderName.toLowerCase().includes(q)
-                || p.paymentKey.toLowerCase().includes(q)
-        })
-    }, [payments, activeStart, activeEnd, search])
-
-    const doneList      = filtered.filter((p) => p.status === "DONE")
-    const cancelledList = filtered.filter((p) => p.status.includes("CANCELED"))
-    const totalAmount   = doneList.reduce((s, p) => s + p.amount, 0)
 
     return (
         <div className="p-7 space-y-6">
-            <LoadingOverlay show={isFetching} label="조회 중..." />
+            <LoadingOverlay show={loading} label="조회 중..." />
 
             {/* 헤더 */}
             <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -151,7 +153,7 @@ export default function PaymentsClient({ payments }: { payments: AdminPayment[] 
                         결제 내역
                     </h1>
                     <p className="text-sm mt-0.5" style={{ color: "var(--toss-text-secondary)" }}>
-                        {filtered.length}건 표시 중 (전체 {payments.length}건)
+                        전체 {stats.totalCount}건
                     </p>
                 </div>
                 {/* 누락 결제 동기화는 헤더에 유지 */}
@@ -196,21 +198,19 @@ export default function PaymentsClient({ payments }: { payments: AdminPayment[] 
             <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
                 <SummaryCard
                     label="결제 완료 금액"
-                    value={`${(totalAmount / 10000).toLocaleString()}만원`}
-                    sub={`${doneList.length}건`}
+                    value={`${(stats.doneAmount / 10000).toLocaleString()}만원`}
+                    sub={`${stats.doneCount}건`}
                     color="#00A878" icon={TrendingUp}
                 />
                 <SummaryCard
                     label="전체 건수"
-                    value={`${payments.length}건`}
+                    value={`${stats.totalCount}건`}
                     color="#0064FF" icon={CreditCard}
                 />
                 <SummaryCard
                     label="취소/부분취소"
-                    value={`${cancelledList.length}건`}
-                    sub={cancelledList.length > 0
-                        ? `${cancelledList.reduce((s, p) => s + p.amount, 0).toLocaleString()}원`
-                        : undefined}
+                    value={`${stats.cancelCount}건`}
+                    sub={stats.cancelCount > 0 ? `${stats.cancelAmount.toLocaleString()}원` : undefined}
                     color="#FF4E4E" icon={XCircle}
                 />
             </div>
@@ -296,7 +296,7 @@ export default function PaymentsClient({ payments }: { payments: AdminPayment[] 
                 </div>
 
                 <div className="overflow-x-auto scrollbar-hide">
-                    {filtered.length === 0 ? (
+                    {items.length === 0 && !loading ? (
                         <div className="py-16 text-center" style={{ color: "var(--toss-text-tertiary)" }}>
                             <CreditCard className="size-10 mx-auto mb-3 opacity-30" />
                             <p className="text-sm">결제 내역이 없습니다</p>
@@ -315,7 +315,7 @@ export default function PaymentsClient({ payments }: { payments: AdminPayment[] 
                                 </tr>
                             </thead>
                             <tbody>
-                                {filtered.map((p, i) => {
+                                {items.map((p, i) => {
                                     const meta = STATUS_META[p.status] ?? {
                                         label: p.status, bg: "#F2F4F6", color: "#8B95A1", icon: Clock,
                                     }
@@ -323,7 +323,7 @@ export default function PaymentsClient({ payments }: { payments: AdminPayment[] 
                                     return (
                                         <tr key={p.id}
                                             className="hover:bg-gray-50 transition-colors"
-                                            style={{ borderBottom: i < filtered.length - 1 ? "1px solid var(--toss-border)" : undefined }}>
+                                            style={{ borderBottom: i < items.length - 1 ? "1px solid var(--toss-border)" : undefined }}>
 
                                             {/* 승인 시각 */}
                                             <td className="px-4 py-3 whitespace-nowrap">
@@ -401,24 +401,31 @@ export default function PaymentsClient({ payments }: { payments: AdminPayment[] 
                 </div>
 
                 {/* 하단 합계 */}
-                {filtered.length > 0 && (
+                {total > 0 && (
                     <div className="px-5 py-3 flex items-center justify-between"
                         style={{ borderTop: "1px solid var(--toss-border)" }}>
                         <p className="text-xs" style={{ color: "var(--toss-text-tertiary)" }}>
-                            {filtered.length}건 표시 중
+                            총 {total}건 중 {items.length}건 표시
                         </p>
                         <p className="text-xs font-bold" style={{ color: "var(--toss-text-primary)" }}>
                             완료 합계&nbsp;
                             <span style={{ color: "var(--toss-blue)" }}>
-                                {filtered
-                                    .filter((p) => p.status === "DONE")
-                                    .reduce((s, p) => s + p.amount, 0)
-                                    .toLocaleString()}원
+                                {stats.doneAmount.toLocaleString()}원
                             </span>
                         </p>
                     </div>
                 )}
             </div>
+
+            {/* 페이지네이션 */}
+            <AdminPagination
+                page={page}
+                pageSize={pageSize}
+                total={total}
+                pageSizeId="select-payments-pagesize"
+                onPageChange={(p) => setPage(p)}
+                onSizeChange={(s) => { setPageSize(s); setPage(1) }}
+            />
         </div>
     )
 }

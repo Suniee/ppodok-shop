@@ -1,10 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Plus, Pencil, Trash2, Search, X, ImagePlus } from "lucide-react"
 import { type Product } from "@/lib/data/products"
 import { type Category } from "@/lib/data/categories"
-import { fetchProducts } from "@/lib/supabase/products"
 import { fetchCategories } from "@/lib/supabase/categories"
 import { KoreanInput } from "@/components/ui/KoreanInput"
 import {
@@ -13,8 +12,10 @@ import {
     upsertProductAction,
     deleteProductAction,
     updateVisibilityAction,
+    fetchProductsPagedAction,
 } from "./actions"
 import ImageCropModal from "@/components/ui/ImageCropModal"
+import AdminPagination from "@/components/admin/AdminPagination"
 
 const bgOptions = ["bg-pink-50", "bg-blue-50", "bg-green-50", "bg-yellow-50", "bg-purple-50", "bg-orange-50", "bg-cyan-50", "bg-teal-50"]
 
@@ -38,6 +39,9 @@ const emptyProduct = (): Product => ({
 
 export default function ProductsPage() {
     const [items, setItems]           = useState<Product[]>([])
+    const [total, setTotal]           = useState(0)
+    const [page, setPage]             = useState(1)
+    const [pageSize, setPageSize]     = useState(20)
     const [categories, setCategories] = useState<Category[]>([])
     const [query, setQuery]           = useState("")
     const [catFilter, setCat]         = useState("all")
@@ -50,12 +54,21 @@ export default function ProductsPage() {
     const [uploadingDetailImg, setUploadingDetailImg] = useState(false)
     const [cropFile, setCropFile]                     = useState<File | null>(null)
 
-    useEffect(() => {
-        Promise.all([fetchProducts(), fetchCategories()]).then(([products, cats]) => {
-            setItems(products)
-            setCategories(cats)
+    const load = useCallback(async () => {
+        setLoading(true)
+        try {
+            const res = await fetchProductsPagedAction(page, pageSize, catFilter, query)
+            setItems(res.items)
+            setTotal(res.total)
+        } finally {
             setLoading(false)
-        })
+        }
+    }, [page, pageSize, catFilter, query])
+
+    useEffect(() => { load() }, [load])
+
+    useEffect(() => {
+        fetchCategories().then(setCategories)
     }, [])
 
     const openNew  = () => { setEditing(emptyProduct()); setIsNew(true); setSaveError(null) }
@@ -71,9 +84,8 @@ export default function ProductsPage() {
         setSaveError(null)
         try {
             await upsertProductAction(editing)
-            if (isNew) setItems((prev) => [{ ...editing }, ...prev])
-            else        setItems((prev) => prev.map((x) => (x.id === editing.id ? editing : x)))
             close()
+            load()
         } catch (err) {
             setSaveError((err as Error).message ?? "저장 중 오류가 발생했습니다.")
         } finally {
@@ -84,7 +96,7 @@ export default function ProductsPage() {
     const remove = async (id: string) => {
         try {
             await deleteProductAction(id)
-            setItems((prev) => prev.filter((x) => x.id !== id))
+            load()
         } catch (err) {
             alert((err as Error).message ?? "삭제 중 오류가 발생했습니다.")
         }
@@ -94,7 +106,7 @@ export default function ProductsPage() {
         const next = !(p.isVisible ?? true)
         try {
             await updateVisibilityAction(p.id, next)
-            setItems((prev) => prev.map((x) => x.id === p.id ? { ...x, isVisible: next } : x))
+            load()
         } catch (err) {
             alert((err as Error).message ?? "노출 설정 변경 중 오류가 발생했습니다.")
         }
@@ -176,12 +188,6 @@ export default function ProductsPage() {
         }
     }
 
-    const filtered = items.filter(
-        (p) =>
-            (catFilter === "all" || p.categories.some((c) => c.slug === catFilter)) &&
-            p.name.toLowerCase().includes(query.toLowerCase())
-    )
-
     return (
         <div data-ui-id="page-admin-products" className="p-7 space-y-5">
             {/* Header */}
@@ -205,7 +211,7 @@ export default function ProductsPage() {
             <div className="flex flex-wrap gap-3">
                 <div data-ui-id="input-admin-product-search" className="flex items-center gap-2 bg-white rounded-2xl px-4 py-2.5 flex-1 min-w-52" style={{ border: "1px solid var(--toss-border)" }}>
                     <Search className="size-4" style={{ color: "var(--toss-text-tertiary)" }} />
-                    <input value={query} onChange={(e) => setQuery(e.target.value)}
+                    <input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1) }}
                         placeholder="상품명 검색" className="bg-transparent flex-1 text-sm outline-none"
                         style={{ color: "var(--toss-text-primary)" }} />
                 </div>
@@ -215,7 +221,7 @@ export default function ProductsPage() {
                         return (
                             <button
                                 key={c.id}
-                                onClick={() => setCat(slug)}
+                                onClick={() => { setCat(slug); setPage(1) }}
                                 className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold transition-colors"
                                 style={{
                                     backgroundColor: catFilter === slug ? "var(--toss-text-primary)" : "white",
@@ -246,11 +252,11 @@ export default function ProductsPage() {
                         <tbody>
                             {loading ? (
                                 <tr><td colSpan={7} className="py-16 text-center text-sm" style={{ color: "var(--toss-text-tertiary)" }}>불러오는 중...</td></tr>
-                            ) : filtered.map((p, i) => (
+                            ) : items.map((p, i) => (
                                 <tr
                                     key={p.id}
                                     className="hover:bg-gray-50 transition-colors"
-                                    style={{ borderBottom: i < filtered.length - 1 ? "1px solid var(--toss-border)" : undefined }}
+                                    style={{ borderBottom: i < items.length - 1 ? "1px solid var(--toss-border)" : undefined }}
                                 >
                                     <td className="px-4 py-3">
                                         <div className="flex items-center gap-3">
@@ -332,9 +338,24 @@ export default function ProductsPage() {
                         </tbody>
                     </table>
                 </div>
-                {!loading && filtered.length === 0 && (
+                {!loading && items.length === 0 && (
                     <div className="py-16 text-center" style={{ color: "var(--toss-text-tertiary)" }}>
                         <p className="text-sm">상품이 없습니다</p>
+                    </div>
+                )}
+                {total > 0 && (
+                    <div className="px-5 py-3 space-y-3" style={{ borderTop: "1px solid var(--toss-border)" }}>
+                        <p className="text-xs" style={{ color: "var(--toss-text-tertiary)" }}>
+                            총 {total}건 중 {items.length}건 표시
+                        </p>
+                        <AdminPagination
+                            page={page}
+                            pageSize={pageSize}
+                            total={total}
+                            pageSizeId="select-products-pagesize"
+                            onPageChange={setPage}
+                            onSizeChange={(s) => { setPageSize(s); setPage(1) }}
+                        />
                     </div>
                 )}
             </div>

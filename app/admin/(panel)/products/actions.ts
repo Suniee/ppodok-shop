@@ -1,7 +1,64 @@
 "use server"
 
 import { createAdminClient } from "@/lib/supabase/admin"
-import { type Product } from "@/lib/data/products"
+import { type Product, type ProductCategory } from "@/lib/data/products"
+
+type DbProductRow = {
+    id: string; name: string; price: number; original_price: number | null
+    emoji: string; bg_color: string; is_new: boolean; is_best: boolean
+    badge: string | null; is_visible: boolean; images: string[] | null
+    detail_images: string[] | null; description: string | null
+    product_categories: { categories: { id: number; name: string; slug: string; icon: string } | null }[]
+}
+
+function rowToProduct(row: DbProductRow): Product {
+    return {
+        id: row.id, name: row.name, price: row.price,
+        originalPrice: row.original_price ?? undefined,
+        emoji: row.emoji, bgColor: row.bg_color,
+        isNew: row.is_new, isBest: row.is_best,
+        badge: row.badge ?? undefined,
+        isVisible: row.is_visible,
+        images: row.images ?? [],
+        detailImages: row.detail_images ?? [],
+        description: row.description ?? undefined,
+        categories: (row.product_categories ?? [])
+            .map((pc) => pc.categories)
+            .filter((c): c is ProductCategory => c !== null),
+    }
+}
+
+export async function fetchProductsPagedAction(
+    page: number,
+    pageSize: number,
+    catSlug: string,
+    query: string,
+): Promise<{ items: Product[]; total: number }> {
+    const admin = createAdminClient()
+    const from = (page - 1) * pageSize
+    const to   = from + pageSize - 1
+    const q    = query.trim()
+
+    let builder = admin
+        .from("products")
+        .select("*, product_categories(categories(*))", { count: "exact" })
+        .order("created_at", { ascending: false })
+        .range(from, to)
+
+    if (q) builder = builder.ilike("name", `%${q}%`)
+
+    const { data, count, error } = await builder
+    if (error || !data) return { items: [], total: 0 }
+
+    let items = (data as DbProductRow[]).map(rowToProduct)
+
+    // 카테고리 필터는 PostgreSQL 조인 조건으로 처리하기 어려워 클라이언트에서 추가 필터링
+    if (catSlug !== "all") {
+        items = items.filter((p) => p.categories.some((c) => c.slug === catSlug))
+    }
+
+    return { items, total: catSlug !== "all" ? items.length : (count ?? 0) }
+}
 
 // Supabase Storage URL에서 버킷 내부 경로만 추출
 function extractStoragePath(url: string): string {
