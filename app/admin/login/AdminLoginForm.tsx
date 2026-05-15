@@ -75,7 +75,7 @@ export default function AdminLoginForm() {
         const fd = new FormData(e.currentTarget)
         startLogin(async () => {
             const result = await adminLoginAction(fd)
-            if (result.error) {
+            if ("error" in result) {
                 setLoginError(result.error)
             } else {
                 router.push("/admin/dashboard")
