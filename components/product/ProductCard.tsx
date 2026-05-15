@@ -102,11 +102,10 @@ export default function ProductCard({ product }: { product: Product }) {
 
         <div className="flex items-end justify-between gap-2">
           <div>
-            {discount && (
-              <span className="text-xs font-bold block mb-0.5" style={{ color: "var(--toss-red)" }}>
-                {discount}% 할인
-              </span>
-            )}
+            {/* 할인 없을 때도 공간 유지 — 빈 줄로 높이 확보 */}
+            <span className="text-xs font-bold block mb-0.5" style={{ color: "var(--toss-red)" }}>
+              {discount ? `${discount}% 할인` : " "}
+            </span>
             <div className="flex items-baseline gap-1.5">
               <span className="text-base font-black" style={{ color: "var(--toss-text-primary)" }}>
                 {product.price.toLocaleString()}원
