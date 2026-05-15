@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation"
 import AdminSidebar from "@/components/admin/AdminSidebar"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -10,26 +11,31 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     const supabase = await createSupabaseServerClient()
     const { data: { user } } = await supabase.auth.getUser()
 
-    let currentUser: { id: string; email: string; name: string | null; adminRole: AdminRole } | null = null
-    let admins: AdminUser[] = []
-    let menuConfig: MenuConfig[] = []
-
-    if (user) {
-        const adminClient = createAdminClient()
-        const [{ data: profile }, adminList, menuCfg] = await Promise.all([
-            adminClient.from("profiles").select("name, admin_role").eq("id", user.id).single(),
-            fetchAdminUsers().catch(() => [] as AdminUser[]),
-            fetchMenuConfig().catch(() => [] as MenuConfig[]),
-        ])
-        currentUser = {
-            id:        user.id,
-            email:     user.email ?? "",
-            name:      profile?.name ?? null,
-            adminRole: (profile?.admin_role ?? 'general') as AdminRole,
-        }
-        admins     = adminList
-        menuConfig = menuCfg
+    // 비로그인 상태면 로그인 페이지로
+    if (!user) {
+        redirect("/admin/login")
     }
+
+    const adminClient = createAdminClient()
+    const [{ data: profile }, adminList, menuCfg] = await Promise.all([
+        adminClient.from("profiles").select("name, admin_role, role, status").eq("id", user.id).single(),
+        fetchAdminUsers().catch(() => [] as AdminUser[]),
+        fetchMenuConfig().catch(() => [] as MenuConfig[]),
+    ])
+
+    // 관리자 권한이 없으면 로그인 페이지로
+    if (!profile || profile.role !== "admin" || profile.status !== "active") {
+        redirect("/admin/login")
+    }
+
+    const currentUser: { id: string; email: string; name: string | null; adminRole: AdminRole } = {
+        id:        user.id,
+        email:     user.email ?? "",
+        name:      profile.name ?? null,
+        adminRole: (profile.admin_role ?? "general") as AdminRole,
+    }
+    const admins: AdminUser[]     = adminList
+    const menuConfig: MenuConfig[] = menuCfg
 
     return (
         <div className="admin-mode flex h-screen overflow-hidden bg-white">
