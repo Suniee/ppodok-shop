@@ -4,6 +4,7 @@ import { useState, useTransition } from "react"
 import { Plus, Pencil, Trash2, GripVertical, X, Loader2 } from "lucide-react"
 import { upsertBannerAction, deleteBannerAction, toggleBannerAction } from "./actions"
 import type { Banner } from "@/lib/supabase/banners"
+import type { Category } from "@/lib/data/categories"
 
 type BannerForm = Omit<Banner, "id" | "created_at"> & { id?: string }
 
@@ -30,7 +31,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     )
 }
 
-export default function BannersClient({ initial }: { initial: Banner[] }) {
+export default function BannersClient({ initial, categories }: { initial: Banner[]; categories: Category[] }) {
     const [banners, setBanners] = useState<Banner[]>(initial)
     const [editing, setEditing] = useState<BannerForm | null>(null)
     const [isNew, setIsNew]     = useState(false)
@@ -209,9 +210,17 @@ export default function BannersClient({ initial }: { initial: Banner[] }) {
                                 <input className={inputCls} style={inputStyle} value={editing.cta}
                                     onChange={(e) => setEditing({ ...editing, cta: e.target.value })} />
                             </Field>
-                            <Field label="링크 URL">
-                                <input className={inputCls} style={inputStyle} value={editing.link}
-                                    onChange={(e) => setEditing({ ...editing, link: e.target.value })} placeholder="/products" />
+                            <Field label="이동 카테고리">
+                                <select className={inputCls} style={inputStyle}
+                                    value={editing.link}
+                                    onChange={(e) => setEditing({ ...editing, link: e.target.value })}>
+                                    <option value="/products">전체 상품 보기</option>
+                                    {categories.map((c) => (
+                                        <option key={c.id} value={`/products?category=${c.slug}`}>
+                                            {c.icon} {c.name}
+                                        </option>
+                                    ))}
+                                </select>
                             </Field>
                             <Field label="이모지">
                                 <input className={inputCls} style={inputStyle} value={editing.emoji}

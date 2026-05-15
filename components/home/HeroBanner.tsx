@@ -1,12 +1,14 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react"
 import type { Banner } from "@/lib/supabase/banners"
 
 export default function HeroBanner({ banners }: { banners: Banner[] }) {
     const [cur, setCur] = useState(0)
+    const router = useRouter()
 
     useEffect(() => {
         if (banners.length <= 1) return
@@ -21,8 +23,9 @@ export default function HeroBanner({ banners }: { banners: Banner[] }) {
     return (
         <div
             data-ui-id="banner-home-hero"
-            className="rounded-3xl overflow-hidden relative"
+            className="rounded-3xl overflow-hidden relative cursor-pointer"
             style={{ backgroundColor: s.bg_color, transition: "background-color 0.5s ease" }}
+            onClick={() => router.push(s.link)}
         >
             <AnimatePresence mode="wait">
                 <motion.div
@@ -49,15 +52,14 @@ export default function HeroBanner({ banners }: { banners: Banner[] }) {
                         <p className="text-sm mb-7" style={{ color: "var(--toss-text-secondary)" }}>
                             {s.subtitle}
                         </p>
-                        <a
-                            href={s.link}
+                        <span
                             data-ui-id="btn-banner-hero-cta"
-                            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold text-white transition-opacity hover:opacity-85"
+                            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold text-white"
                             style={{ backgroundColor: s.text_color }}
                         >
                             {s.cta}
                             <ArrowRight className="size-3.5" />
-                        </a>
+                        </span>
                     </div>
                     <motion.div
                         animate={{ y: [0, -8, 0] }}
@@ -73,7 +75,7 @@ export default function HeroBanner({ banners }: { banners: Banner[] }) {
                 <>
                     <button
                         data-ui-id="btn-banner-hero-prev"
-                        onClick={() => setCur((c) => (c - 1 + banners.length) % banners.length)}
+                        onClick={(e) => { e.stopPropagation(); setCur((c) => (c - 1 + banners.length) % banners.length) }}
                         className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/70 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors shadow-sm"
                         style={{ color: "var(--toss-text-secondary)" }}
                     >
@@ -81,7 +83,7 @@ export default function HeroBanner({ banners }: { banners: Banner[] }) {
                     </button>
                     <button
                         data-ui-id="btn-banner-hero-next"
-                        onClick={() => setCur((c) => (c + 1) % banners.length)}
+                        onClick={(e) => { e.stopPropagation(); setCur((c) => (c + 1) % banners.length) }}
                         className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/70 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors shadow-sm"
                         style={{ color: "var(--toss-text-secondary)" }}
                     >
@@ -91,7 +93,7 @@ export default function HeroBanner({ banners }: { banners: Banner[] }) {
                         {banners.map((_, i) => (
                             <button
                                 key={i}
-                                onClick={() => setCur(i)}
+                                onClick={(e) => { e.stopPropagation(); setCur(i) }}
                                 className="h-1.5 rounded-full transition-all duration-300"
                                 style={{
                                     width: i === cur ? "20px" : "6px",
