@@ -120,11 +120,11 @@ export default function Header() {
             )}
           </div>
 
-          {/* Search */}
-          <div className="flex-1 max-w-md">
+          {/* Search — sm 이상에서만 표시 */}
+          <div className="hidden sm:flex flex-1 max-w-md">
             <div
               data-ui-id="input-header-search"
-              className="flex items-center gap-2 rounded-2xl px-4 py-2.5 transition-all focus-within:ring-2"
+              className="flex items-center gap-2 rounded-2xl px-4 py-2.5 w-full transition-all focus-within:ring-2"
               style={{
                 backgroundColor: "var(--toss-page-bg)",
                 "--tw-ring-color": "var(--toss-blue)",
@@ -135,15 +135,25 @@ export default function Header() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && searchQuery.trim()) router.push(`/products?q=${encodeURIComponent(searchQuery.trim())}`) }}
                 placeholder="어떤 상품을 찾고 계세요?"
-                className="bg-transparent flex-1 text-sm outline-none"
+                className="bg-transparent flex-1 text-sm outline-none min-w-0"
                 style={{ color: "var(--toss-text-primary)" }}
               />
             </div>
           </div>
 
           {/* Icons */}
-          <div className="flex items-center gap-1 ml-auto">
+          <div className="flex items-center gap-0.5 sm:gap-1 ml-auto flex-shrink-0">
+            {/* 모바일 전용 검색 아이콘 */}
+            <button
+              data-ui-id="btn-header-search-mobile"
+              className="sm:hidden p-2.5 rounded-xl transition-colors hover:bg-gray-50"
+              style={{ color: "var(--toss-text-secondary)" }}
+              onClick={() => router.push(searchQuery.trim() ? `/products?q=${encodeURIComponent(searchQuery.trim())}` : "/products")}
+            >
+              <Search className="size-5" />
+            </button>
             <button data-ui-id="btn-header-notification" className="p-2.5 rounded-xl transition-colors hover:bg-gray-50 relative" style={{ color: "var(--toss-text-secondary)" }}>
               <Bell className="size-5" />
               <span
