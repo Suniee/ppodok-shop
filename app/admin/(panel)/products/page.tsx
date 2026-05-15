@@ -33,7 +33,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 const emptyProduct = (): Product => ({
     id: `P${Date.now()}`,
     name: "", price: 0, emoji: "📦", bgColor: "bg-gray-50",
-    isNew: true, isVisible: true, images: [], categories: [],
+    isNew: true, isVisible: true, images: [], detailImages: [], categories: [],
 })
 
 export default function ProductsPage() {
@@ -46,8 +46,9 @@ export default function ProductsPage() {
     const [loading, setLoading]       = useState(true)
     const [saving, setSaving]         = useState(false)
     const [saveError, setSaveError]   = useState<string | null>(null)
-    const [uploadingImg, setUploadingImg] = useState(false)
-    const [cropFile, setCropFile]     = useState<File | null>(null)
+    const [uploadingImg, setUploadingImg]             = useState(false)
+    const [uploadingDetailImg, setUploadingDetailImg] = useState(false)
+    const [cropFile, setCropFile]                     = useState<File | null>(null)
 
     useEffect(() => {
         Promise.all([fetchProducts(), fetchCategories()]).then(([products, cats]) => {
@@ -58,7 +59,7 @@ export default function ProductsPage() {
     }, [])
 
     const openNew  = () => { setEditing(emptyProduct()); setIsNew(true); setSaveError(null) }
-    const openEdit = (p: Product) => { setEditing({ ...p, images: [...(p.images ?? [])], categories: [...p.categories] }); setIsNew(false); setSaveError(null) }
+    const openEdit = (p: Product) => { setEditing({ ...p, images: [...(p.images ?? [])], detailImages: [...(p.detailImages ?? [])], categories: [...p.categories] }); setIsNew(false); setSaveError(null) }
     const close    = () => { setEditing(null); setIsNew(false); setSaveError(null) }
 
     const save = async () => {
@@ -133,6 +134,34 @@ export default function ProductsPage() {
             alert((err as Error).message ?? "이미지 업로드에 실패했습니다.")
         } finally {
             setUploadingImg(false)
+        }
+    }
+
+    // 상세 이미지: 크롭 없이 바로 업로드
+    const handleDetailImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file || !editing) return
+        e.target.value = ""
+        setUploadingDetailImg(true)
+        try {
+            const formData = new FormData()
+            formData.append("file", file)
+            const url = await uploadProductImageAction(formData)
+            setEditing((prev) => prev ? { ...prev, detailImages: [...(prev.detailImages ?? []), url] } : prev)
+        } catch (err) {
+            alert((err as Error).message ?? "이미지 업로드에 실패했습니다.")
+        } finally {
+            setUploadingDetailImg(false)
+        }
+    }
+
+    const removeDetailImage = async (url: string) => {
+        if (!editing) return
+        try {
+            await deleteProductImageAction(url)
+            setEditing({ ...editing, detailImages: (editing.detailImages ?? []).filter((u) => u !== url) })
+        } catch (err) {
+            alert((err as Error).message ?? "이미지 삭제에 실패했습니다.")
         }
     }
 
@@ -479,6 +508,71 @@ export default function ProductsPage() {
                                             </button>
                                         )
                                     })}
+                                </div>
+                            </Field>
+
+                            <Field label="상품 설명">
+                                <textarea
+                                    data-ui-id="textarea-admin-product-description"
+                                    className={`${inputCls} resize-none`}
+                                    style={{ ...inputStyle, minHeight: "120px", lineHeight: "1.6" }}
+                                    value={editing.description ?? ""}
+                                    onChange={(e) => setEditing({ ...editing, description: e.target.value || undefined })}
+                                    placeholder={"상품의 특징, 사용법, 주의사항 등을 자유롭게 작성하세요.\n줄 바꿈도 그대로 표시됩니다."}
+                                />
+                            </Field>
+
+                            <Field label="상품 상세 이미지">
+                                <div className="space-y-2">
+                                    {/* 업로드된 상세 이미지 목록 */}
+                                    {(editing.detailImages ?? []).length > 0 && (
+                                        <div className="space-y-2">
+                                            {editing.detailImages!.map((url, idx) => (
+                                                <div
+                                                    key={url}
+                                                    className="relative rounded-xl overflow-hidden group"
+                                                    style={{ border: "1px solid var(--toss-border)" }}
+                                                >
+                                                    <img
+                                                        src={url}
+                                                        alt={`상세 이미지 ${idx + 1}`}
+                                                        className="w-full object-contain"
+                                                    />
+                                                    <button
+                                                        onClick={() => removeDetailImage(url)}
+                                                        className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+                                                    >
+                                                        <X className="size-3.5 text-white" />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* 업로드 버튼 */}
+                                    <label
+                                        data-ui-id="input-admin-product-detail-image"
+                                        className="flex items-center justify-center gap-2 py-3 rounded-xl cursor-pointer text-sm font-semibold transition-colors hover:bg-blue-50"
+                                        style={{
+                                            border: "2px dashed var(--toss-border)",
+                                            color: uploadingDetailImg ? "var(--toss-text-tertiary)" : "var(--toss-text-secondary)",
+                                            cursor: uploadingDetailImg ? "not-allowed" : "pointer",
+                                        }}
+                                    >
+                                        <input
+                                            type="file"
+                                            accept="image/jpeg,image/png,image/webp,image/gif"
+                                            className="hidden"
+                                            onChange={handleDetailImageUpload}
+                                            disabled={uploadingDetailImg}
+                                        />
+                                        <ImagePlus className="size-4" />
+                                        {uploadingDetailImg ? "업로드 중..." : "상세 이미지 추가"}
+                                    </label>
+                                    <p className="text-[11px]" style={{ color: "var(--toss-text-tertiary)" }}>
+                                        JPG, PNG, WEBP (최대 5MB) · 상세 페이지에 순서대로 표시됩니다
+                                    </p>
                                 </div>
                             </Field>
 

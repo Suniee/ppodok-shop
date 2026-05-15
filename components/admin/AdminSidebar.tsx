@@ -7,7 +7,7 @@ import {
     LayoutDashboard, Users, Image, Package, Tag, Palette,
     ScrollText, LogOut, ChevronRight, TrendingUp, CreditCard,
     BarChart2, ChevronDown, Scale, Undo2, ShieldCheck,
-    Settings, List,
+    Settings, List, Star, MessageCircle,
 } from "lucide-react"
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser"
 import type { AdminUser, AdminRole } from "@/lib/supabase/admins"
@@ -18,6 +18,7 @@ import type { NavEntry, NavItem, NavGroup, MenuConfig } from "@/lib/admin-menu"
 const ICON_MAP: Record<string, React.ElementType> = {
     LayoutDashboard, BarChart2, TrendingUp, CreditCard, Scale, Undo2,
     Users, ShieldCheck, Image, Package, Tag, Palette, ScrollText, Settings, List,
+    Star, MessageCircle,
 }
 
 function IconComp({ name, className }: { name: string; className?: string }) {

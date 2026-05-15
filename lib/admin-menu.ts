@@ -23,6 +23,8 @@ export const MENU_ITEMS: MenuItemDef[] = [
     { id: "admins",         label: "관리자 관리",    href: "/admin/admins",                  icon: "ShieldCheck",     parentId: null,    defaultVisibleSuper: true,  defaultVisibleGeneral: false },
     { id: "banners",        label: "배너 관리",      href: "/admin/banners",                 icon: "Image",           parentId: null,    defaultVisibleSuper: true,  defaultVisibleGeneral: true  },
     { id: "products",       label: "상품 관리",      href: "/admin/products",                icon: "Package",         parentId: null,    defaultVisibleSuper: true,  defaultVisibleGeneral: true  },
+    { id: "reviews",        label: "리뷰 관리",       href: "/admin/reviews",                 icon: "Star",            parentId: null,    defaultVisibleSuper: true,  defaultVisibleGeneral: true  },
+    { id: "qna",            label: "Q&A 관리",       href: "/admin/qna",                     icon: "MessageCircle",   parentId: null,    defaultVisibleSuper: true,  defaultVisibleGeneral: true  },
     { id: "categories",     label: "카테고리 관리",  href: "/admin/categories",              icon: "Tag",             parentId: null,    defaultVisibleSuper: true,  defaultVisibleGeneral: true  },
     { id: "design-system",  label: "디자인 시스템",  href: "/admin/design-system",           icon: "Palette",         parentId: null,    defaultVisibleSuper: true,  defaultVisibleGeneral: true  },
     { id: "policy",         label: "정책관리",        href: "/admin/settings",               icon: "ScrollText",      parentId: null,    defaultVisibleSuper: true,  defaultVisibleGeneral: true  },

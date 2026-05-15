@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 import { Heart, ShoppingCart, Check } from "lucide-react"
 import { type Product } from "@/lib/data/products"
@@ -17,6 +18,7 @@ export default function ProductCard({ product }: { product: Product }) {
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault()
+    e.stopPropagation()
     if (added) return
     addItem(product)
     setAdded(true)
@@ -26,6 +28,7 @@ export default function ProductCard({ product }: { product: Product }) {
   }
 
   return (
+    <Link href={`/products/${product.id}`} className="block">
     <motion.div
       data-ui-id={`card-product-${product.id}`}
       whileHover={{ y: -2 }}
@@ -55,7 +58,7 @@ export default function ProductCard({ product }: { product: Product }) {
         <motion.button
           data-ui-id="btn-product-like"
           whileTap={{ scale: 0.8 }}
-          onClick={(e) => { e.preventDefault(); setLiked(!liked) }}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLiked(!liked) }}
           className="absolute top-2.5 right-2.5 z-10 w-7 h-7 rounded-full bg-white flex items-center justify-center shadow-sm"
           style={{ border: "1px solid var(--toss-border)" }}
         >
@@ -151,5 +154,6 @@ export default function ProductCard({ product }: { product: Product }) {
         </div>
       </div>
     </motion.div>
+    </Link>
   )
 }

@@ -14,5 +14,7 @@ export type Product = {
   badge?: string
   isVisible?: boolean
   images?: string[]
+  detailImages?: string[]
   categories: ProductCategory[]
+  description?: string
 }

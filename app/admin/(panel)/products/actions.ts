@@ -70,6 +70,8 @@ export async function upsertProductAction(product: Product): Promise<void> {
         badge: product.badge ?? null,
         is_visible: product.isVisible ?? true,
         images: product.images ?? [],
+        detail_images: product.detailImages ?? [],
+        description: product.description ?? null,
     })
     if (pe) throw new Error(pe.code === "23505" ? "이미 사용 중인 ID입니다." : pe.message)
 
