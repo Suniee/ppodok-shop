@@ -3,6 +3,7 @@ import { CheckCircle2, MapPin, CreditCard, Package } from "lucide-react"
 import { fetchOrderById, updateOrderStatus, ORDER_STATUS_LABEL } from "@/lib/supabase/orders"
 import { confirmTossPayment } from "@/lib/toss"
 import { savePayment } from "@/lib/supabase/payments"
+import { clearCartAction } from "@/lib/supabase/cart"
 import { CartClearer } from "./CartClearer"
 
 const PAYMENT_LABEL: Record<string, string> = {
@@ -41,6 +42,8 @@ export default async function OrderCompletePage({ params, searchParams }: Props)
                         approvedAt:  (tossResponse.approvedAt as string) ?? null,
                         rawResponse: tossResponse,
                     }),
+                    // DB 카트를 서버에서 먼저 비워야 클라이언트 HYDRATE 시 빈 카트가 복원됨
+                    clearCartAction(),
                 ])
             } catch {
                 // 승인 실패 → 실패 페이지로 이동 처리는 클라이언트가 담당

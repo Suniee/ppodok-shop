@@ -33,7 +33,14 @@ const SHIPPING_FEE      = 3_000
 export async function createOrderAction(input: CreateOrderInput): Promise<string> {
     if (!input.recipientName.trim()) throw new Error("받는 분 이름을 입력해주세요.")
     if (!input.phone.trim())         throw new Error("연락처를 입력해주세요.")
+
+    // 한국 전화번호 형식: 02-XXXX-XXXX / 0XX-XXX-XXXX / 0XX-XXXX-XXXX
+    if (!/^\d{2,3}-\d{3,4}-\d{4}$/.test(input.phone.trim())) {
+        throw new Error("올바른 전화번호 형식이 아닙니다. (예: 010-1234-5678)")
+    }
+
     if (!input.postalCode.trim())    throw new Error("배송지 주소를 입력해주세요.")
+    if (!input.addressDetail.trim()) throw new Error("상세 주소를 입력해주세요.")
     if (input.items.length === 0)    throw new Error("주문 상품이 없습니다.")
 
     const supabase = await createSupabaseServerClient()
@@ -46,22 +53,38 @@ export async function createOrderAction(input: CreateOrderInput): Promise<string
     let cartCouponResult:   Awaited<ReturnType<typeof validateUserCoupon>> | null = null
     const itemCouponResults: Map<number, Awaited<ReturnType<typeof validateUserCoupon>>> = new Map()
 
+    // 금액 계산은 쿠폰 검증에 필요하므로 먼저 수행
+    const itemsTotal  = input.items.reduce((s, i) => s + i.price * i.quantity, 0)
+    const shippingFee = itemsTotal >= FREE_SHIPPING_MIN ? 0 : SHIPPING_FEE
+
     if (input.cartCouponId) {
         cartCouponResult = await validateUserCoupon(input.cartCouponId, user.id)
         if (!cartCouponResult.valid) throw new Error(`장바구니 쿠폰: ${cartCouponResult.message}`)
+
+        // 최소 주문 금액 서버 재검증 (클라이언트 우회 방지)
+        const minAmt = cartCouponResult.userCoupon!.coupon.minOrderAmount
+        if (itemsTotal < minAmt) {
+            throw new Error(`장바구니 쿠폰은 ${minAmt.toLocaleString()}원 이상 주문 시 사용 가능합니다.`)
+        }
     }
 
     for (const ic of input.itemCoupons) {
         const res = await validateUserCoupon(ic.userCouponId, user.id)
         if (!res.valid) throw new Error(`상품 쿠폰: ${res.message}`)
         if (res.userCoupon?.coupon.type !== "product") throw new Error("상품 쿠폰만 상품에 적용할 수 있습니다.")
+
+        // 상품별 최소 주문 금액 서버 재검증
+        const item    = input.items[ic.itemIndex]
+        const baseAmt = item ? item.price * item.quantity : 0
+        const minAmt  = res.userCoupon!.coupon.minOrderAmount
+        if (baseAmt < minAmt) {
+            throw new Error(`상품 쿠폰은 해당 상품이 ${minAmt.toLocaleString()}원 이상일 때 사용 가능합니다.`)
+        }
+
         itemCouponResults.set(ic.itemIndex, res)
     }
 
     // ── 금액 계산 ──────────────────────────────────────────────
-    const itemsTotal  = input.items.reduce((s, i) => s + i.price * i.quantity, 0)
-    const shippingFee = itemsTotal >= FREE_SHIPPING_MIN ? 0 : SHIPPING_FEE
-
     // 장바구니 쿠폰 할인
     const cartDiscount = cartCouponResult?.userCoupon
         ? calcDiscount(cartCouponResult.userCoupon.coupon, itemsTotal)

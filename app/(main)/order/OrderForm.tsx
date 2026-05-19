@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { ShoppingBag, Truck, CreditCard, Loader2, ChevronRight, Clock, Ticket, ChevronDown, X } from "lucide-react"
+import { ShoppingBag, Truck, CreditCard, Loader2, ChevronRight, Clock, Ticket, ChevronDown, X, Check, MessageSquare } from "lucide-react"
 import { loadTossPayments, ANONYMOUS } from "@tosspayments/tosspayments-sdk"
 import AddressInput, { type AddressValue } from "@/components/ui/AddressInput"
 import { useCart } from "@/lib/store/CartContext"
@@ -307,6 +307,156 @@ function CouponBottomSheet({
     )
 }
 
+// ── 배송 메모 바텀시트 피커 ──────────────────────────────────
+function MemoBottomSheet({
+    preset,
+    custom,
+    presets,
+    onPresetChange,
+    onCustomChange,
+}: {
+    preset:         string
+    custom:         string
+    presets:        string[]
+    onPresetChange: (v: string) => void
+    onCustomChange: (v: string) => void
+}) {
+    const [open, setOpen]       = useState(false)
+    const [visible, setVisible] = useState(false)
+
+    const openSheet = () => {
+        setOpen(true)
+        setTimeout(() => setVisible(true), 16)
+    }
+
+    const closeSheet = () => {
+        setVisible(false)
+        setTimeout(() => setOpen(false), 300)
+    }
+
+    const handleSelect = (value: string) => {
+        onPresetChange(value)
+        closeSheet()
+    }
+
+    useEffect(() => {
+        if (!open) return
+        const handler = (e: KeyboardEvent) => { if (e.key === "Escape") closeSheet() }
+        window.addEventListener("keydown", handler)
+        return () => window.removeEventListener("keydown", handler)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open])
+
+    const isCustom      = preset === "직접 입력"
+    const displayLabel  = isCustom ? (custom.trim() || "직접 입력") : preset
+
+    return (
+        <>
+            {/* 트리거 버튼 */}
+            <button
+                type="button"
+                onClick={openSheet}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left transition-all"
+                style={{
+                    border:          "1.5px solid var(--toss-border)",
+                    backgroundColor: "#fff",
+                }}>
+                <MessageSquare className="size-4 flex-shrink-0" style={{ color: "var(--toss-text-tertiary)" }} />
+                <span className="flex-1 text-sm truncate" style={{ color: "var(--toss-text-primary)" }}>
+                    {displayLabel}
+                </span>
+                <ChevronDown className="size-4 flex-shrink-0" style={{ color: "var(--toss-text-tertiary)" }} />
+            </button>
+
+            {/* 직접 입력 시 텍스트 필드 */}
+            {isCustom && (
+                <input
+                    className={inputCls}
+                    style={inputStyle}
+                    value={custom}
+                    onChange={(e) => onCustomChange(e.target.value)}
+                    placeholder="배송 메모를 입력해주세요"
+                    onFocus={(e) => (e.currentTarget.style.borderColor = "var(--toss-blue)")}
+                    onBlur={(e)  => (e.currentTarget.style.borderColor = "var(--toss-border)")}
+                    autoFocus
+                />
+            )}
+
+            {/* 바텀시트 */}
+            {open && (
+                <>
+                    <div
+                        className="transition-opacity duration-300"
+                        style={{
+                            position:        "fixed",
+                            inset:           0,
+                            zIndex:          50,
+                            backgroundColor: "rgba(0,0,0,0.45)",
+                            opacity:         visible ? 1 : 0,
+                        }}
+                        onClick={closeSheet}
+                    />
+                    <div
+                        className="bg-white rounded-t-3xl transition-transform duration-300"
+                        style={{
+                            position:  "fixed",
+                            left:      0,
+                            right:     0,
+                            bottom:    0,
+                            zIndex:    51,
+                            maxHeight: "60vh",
+                            overflow:  "hidden",
+                            boxShadow: "0 -4px 24px rgba(0,0,0,0.12)",
+                            transform: visible ? "translateY(0)" : "translateY(100%)",
+                        }}>
+
+                        {/* 핸들 */}
+                        <div className="flex justify-center pt-3 pb-1">
+                            <div className="w-10 h-1 rounded-full" style={{ backgroundColor: "var(--toss-border)" }} />
+                        </div>
+
+                        {/* 헤더 */}
+                        <div className="flex items-center justify-between px-5 py-4"
+                            style={{ borderBottom: "1px solid var(--toss-border)" }}>
+                            <p className="text-base font-bold" style={{ color: "var(--toss-text-primary)", letterSpacing: "-0.02em" }}>
+                                배송 메모 선택
+                            </p>
+                            <button type="button" onClick={closeSheet}
+                                className="p-1.5 rounded-xl hover:bg-gray-100 transition-colors">
+                                <X className="size-5" style={{ color: "var(--toss-text-secondary)" }} />
+                            </button>
+                        </div>
+
+                        {/* 옵션 목록 */}
+                        <div className="overflow-y-auto" style={{ maxHeight: "calc(60vh - 82px)" }}>
+                            {presets.map((p, i) => {
+                                const isSelected = preset === p
+                                return (
+                                    <button key={p} type="button"
+                                        onClick={() => handleSelect(p)}
+                                        className="w-full flex items-center justify-between px-5 py-4 text-left transition-colors hover:bg-gray-50"
+                                        style={{
+                                            borderBottom:    i < presets.length - 1 ? "1px solid var(--toss-border)" : undefined,
+                                            backgroundColor: isSelected ? "var(--toss-blue-light)" : undefined,
+                                        }}>
+                                        <span className="text-sm font-medium"
+                                            style={{ color: isSelected ? "var(--toss-blue)" : "var(--toss-text-primary)" }}>
+                                            {p}
+                                        </span>
+                                        {isSelected && (
+                                            <Check className="size-4" style={{ color: "var(--toss-blue)" }} />
+                                        )}
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    </div>
+                </>
+            )}
+        </>
+    )
+}
+
 // ── 메인 컴포넌트 ─────────────────────────────────────────────
 export default function OrderForm({
     profile,
@@ -375,6 +525,17 @@ export default function OrderForm({
 
     const handleSubmit = async () => {
         setError(null)
+
+        // 클라이언트 사전 검증
+        if (!recipientName.trim()) { setError("받는 분 이름을 입력해주세요."); return }
+        if (!phone.trim())         { setError("연락처를 입력해주세요."); return }
+        if (!/^\d{2,3}-\d{3,4}-\d{4}$/.test(phone.trim())) {
+            setError("올바른 전화번호 형식이 아닙니다. (예: 010-1234-5678)")
+            return
+        }
+        if (!address.postalCode.trim()) { setError("배송지 주소를 입력해주세요."); return }
+        if (!address.addressDetail.trim()) { setError("상세 주소를 입력해주세요."); return }
+
         setSubmitting(true)
         try {
             // 상품쿠폰 매핑: itemIndex → userCouponId
@@ -557,19 +718,13 @@ export default function OrderForm({
                             <AddressInput value={address} onChange={setAddress} />
                         </Field>
                         <Field label="배송 메모">
-                            <select className={inputCls} style={inputStyle} value={memoPreset}
-                                onChange={(e) => setMemoPreset(e.target.value)}
-                                onFocus={(e) => (e.currentTarget.style.borderColor = "var(--toss-blue)")}
-                                onBlur={(e)  => (e.currentTarget.style.borderColor = "var(--toss-border)")}>
-                                {MEMO_PRESETS.map((p) => <option key={p}>{p}</option>)}
-                            </select>
-                            {memoPreset === "직접 입력" && (
-                                <input className={inputCls} style={inputStyle} value={memoCustom}
-                                    onChange={(e) => setMemoCustom(e.target.value)}
-                                    placeholder="배송 메모를 입력해주세요"
-                                    onFocus={(e) => (e.currentTarget.style.borderColor = "var(--toss-blue)")}
-                                    onBlur={(e)  => (e.currentTarget.style.borderColor = "var(--toss-border)")} />
-                            )}
+                            <MemoBottomSheet
+                                preset={memoPreset}
+                                custom={memoCustom}
+                                presets={MEMO_PRESETS}
+                                onPresetChange={setMemoPreset}
+                                onCustomChange={setMemoCustom}
+                            />
                         </Field>
                     </div>
                 </Section>
