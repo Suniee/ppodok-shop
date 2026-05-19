@@ -75,6 +75,7 @@ export default function AccountForm({ profile }: { profile: Profile }) {
             await deleteAccountAction()
             // 서버에서 유저 삭제 후 클라이언트 세션도 정리하고 강제 이동
             await createSupabaseBrowserClient().auth.signOut()
+            localStorage.removeItem("cart_items")
             window.location.replace("/?toast=withdrawn")
         } catch (err) {
             setWithdrawError((err as Error).message ?? "탈퇴 처리 중 오류가 발생했습니다.")

@@ -17,8 +17,7 @@ export async function checkWithdrawnEmailAction(email: string): Promise<boolean>
 export async function autoActivateCustomerAction(userId: string): Promise<void> {
     const admin = createAdminClient()
     await admin
-        .from("profiles")
+        .from("customer_profiles")
         .update({ status: "active" })
         .eq("id", userId)
-        .eq("role", "customer")
 }

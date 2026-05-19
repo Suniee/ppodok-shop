@@ -81,11 +81,11 @@ export async function fetchDashboardData(): Promise<DashboardData> {
         admin.from("orders").select("total_price")
             .eq("status", "delivered").gte("created_at", prevRange.start).lte("created_at", prevRange.end),
         // 이번달 신규 회원
-        admin.from("profiles").select("id", { count: "exact", head: true })
-            .eq("role", "customer").gte("created_at", thisRange.start).lte("created_at", thisRange.end),
+        admin.from("customer_profiles").select("id", { count: "exact", head: true })
+            .gte("created_at", thisRange.start).lte("created_at", thisRange.end),
         // 전달 신규 회원
-        admin.from("profiles").select("id", { count: "exact", head: true })
-            .eq("role", "customer").gte("created_at", prevRange.start).lte("created_at", prevRange.end),
+        admin.from("customer_profiles").select("id", { count: "exact", head: true })
+            .gte("created_at", prevRange.start).lte("created_at", prevRange.end),
         // 6개월치 배송완료 주문 (월별 차트용)
         admin.from("orders").select("total_price, created_at")
             .eq("status", "delivered").gte("created_at", sixMonthStart),

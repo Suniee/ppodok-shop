@@ -23,14 +23,14 @@ export async function POST(request: NextRequest) {
 
     const admin = createAdminClient()
 
-    // 대상 계정이 활성 관리자인지 검증
+    // 대상 계정이 admin_profiles에 있고 활성 상태인지 검증
     const { data: targetProfile } = await admin
-        .from("profiles")
-        .select("role, status")
+        .from("admin_profiles")
+        .select("status")
         .eq("email", targetEmail)
         .maybeSingle()
 
-    if (!targetProfile || targetProfile.role !== "admin" || targetProfile.status !== "active") {
+    if (!targetProfile || targetProfile.status !== "active") {
         return NextResponse.json({ error: "전환할 수 없는 계정입니다." }, { status: 400 })
     }
 

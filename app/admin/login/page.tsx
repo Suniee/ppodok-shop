@@ -11,12 +11,12 @@ export default async function AdminLoginPage() {
     if (user) {
         const adminClient = createAdminClient()
         const { data: profile } = await adminClient
-            .from("profiles")
-            .select("role, status")
+            .from("admin_profiles")
+            .select("status")
             .eq("id", user.id)
             .maybeSingle()
 
-        if (profile?.role === "admin" && profile?.status === "active") {
+        if (profile?.status === "active") {
             redirect("/admin/dashboard")
         }
     }

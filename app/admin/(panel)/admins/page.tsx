@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation"
 import { Suspense } from "react"
 import AdminsClient from "./AdminsClient"
-import { fetchPendingUsers } from "@/lib/supabase/admins"
 import { createSupabaseServerClient, ADMIN_STORAGE_KEY } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 
@@ -14,7 +13,7 @@ export default async function AdminsPage() {
 
     const adminClient = createAdminClient()
     const { data: profile } = await adminClient
-        .from("profiles")
+        .from("admin_profiles")
         .select("admin_role")
         .eq("id", user.id)
         .maybeSingle()
@@ -23,12 +22,10 @@ export default async function AdminsPage() {
         redirect("/admin/dashboard")
     }
 
-    const pending = await fetchPendingUsers().catch(() => [])
-
     return (
         <div data-ui-id="page-admin-admins">
             <Suspense>
-                <AdminsClient pending={pending} />
+                <AdminsClient />
             </Suspense>
         </div>
     )

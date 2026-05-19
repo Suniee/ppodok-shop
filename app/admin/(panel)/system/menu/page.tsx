@@ -14,7 +14,7 @@ export default async function MenuManagePage() {
 
     const adminClient = createAdminClient()
     const { data: profile } = await adminClient
-        .from("profiles")
+        .from("admin_profiles")
         .select("admin_role")
         .eq("id", user.id)
         .maybeSingle()

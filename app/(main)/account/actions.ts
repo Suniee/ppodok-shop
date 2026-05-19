@@ -20,7 +20,7 @@ export async function updateProfileAction(input: ProfileUpdateInput): Promise<vo
     // service_role로 RLS 우회 업데이트 (anon 정책은 자기 행만 허용하지만 service_role이 더 안전)
     const admin = createAdminClient()
     const { error } = await admin
-        .from("profiles")
+        .from("customer_profiles")
         .update({
             name: input.name.trim() || null,
             phone: input.phone.trim() || null,

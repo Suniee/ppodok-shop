@@ -1,12 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Eye, EyeOff, Loader2, ArrowLeft, Mail, CheckCircle2 } from "lucide-react"
+import { Eye, EyeOff, Loader2, ArrowLeft, Mail, CheckCircle2, MailCheck } from "lucide-react"
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser"
 
-// 카드 안에서 전환되는 세 가지 뷰
-type View = "login" | "forgot" | "sent"
+// 카드 안에서 전환되는 뷰
+type View = "login" | "forgot" | "sent" | "verify"
 
 const inputBase = "w-full rounded-2xl px-4 py-3.5 text-sm outline-none transition-all"
 const inputStyle: React.CSSProperties = {
@@ -25,6 +25,14 @@ function blurGray(e: React.FocusEvent<HTMLInputElement>) {
 export default function LoginPage() {
     const router = useRouter()
     const [view, setView]           = useState<View>("login")
+    const [emailConfirmedToast, setEmailConfirmedToast] = useState(false)
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search)
+        if (params.get("toast") === "email_confirmed") {
+            setEmailConfirmedToast(true)
+        }
+    }, [])
 
     // 로그인 폼 상태
     const [email, setEmail]         = useState("")
@@ -37,6 +45,11 @@ export default function LoginPage() {
     const [forgotEmail, setForgotEmail]     = useState("")
     const [forgotLoading, setForgotLoading] = useState(false)
     const [forgotError, setForgotError]     = useState<string | null>(null)
+
+    // 이메일 인증 재발송 상태
+    const [resendLoading, setResendLoading] = useState(false)
+    const [resendSent, setResendSent]       = useState(false)
+    const [resendError, setResendError]     = useState<string | null>(null)
 
     /* ── 로그인 ── */
     const handleLogin = async (e: React.FormEvent) => {
@@ -52,15 +65,36 @@ export default function LoginPage() {
         })
 
         if (error) {
-            setLoginError(
-                error.message === "Invalid login credentials"
-                    ? "이메일 또는 비밀번호가 올바르지 않습니다."
-                    : error.message === "Email not confirmed"
-                    ? "이메일 인증이 필요합니다. 가입 시 받은 메일을 확인해 주세요."
-                    : "로그인 중 오류가 발생했습니다. 다시 시도해 주세요."
-            )
+            if (error.message === "Email not confirmed") {
+                // 이메일 미인증 → 인증 유도 화면으로 전환 (에러 메시지 대신)
+                setResendSent(false)
+                setResendError(null)
+                setView("verify")
+            } else {
+                setLoginError(
+                    error.message === "Invalid login credentials"
+                        ? "이메일 또는 비밀번호가 올바르지 않습니다."
+                        : "로그인 중 오류가 발생했습니다. 다시 시도해 주세요."
+                )
+            }
             setLoginLoading(false)
             return
+        }
+
+        // 정지 계정 체크 — 인증 성공 후 프로필 상태 확인
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+            const { data: profile } = await supabase
+                .from("customer_profiles")
+                .select("status")
+                .eq("id", user.id)
+                .single()
+            if (profile?.status === "suspended") {
+                await supabase.auth.signOut()
+                setLoginError("계정이 정지된 상태입니다. 자세한 내용은 고객센터에 문의해 주세요.")
+                setLoginLoading(false)
+                return
+            }
         }
 
         router.push("/")
@@ -107,7 +141,34 @@ export default function LoginPage() {
 
     const backToLogin = () => {
         setForgotError(null)
+        setResendSent(false)
+        setResendError(null)
         setView("login")
+    }
+
+    /* ── 인증 메일 재발송 ── */
+    const handleResend = async () => {
+        if (resendLoading || !email.trim()) return
+        setResendLoading(true)
+        setResendError(null)
+
+        const supabase = createSupabaseBrowserClient()
+        const { error } = await supabase.auth.resend({
+            type:  "signup",
+            email: email.trim(),
+        })
+
+        if (error) {
+            setResendError(
+                error.message.toLowerCase().includes("rate limit") ||
+                error.message.includes("security purposes")
+                    ? "잠시 후 다시 시도해 주세요. (재전송 대기 시간이 있습니다)"
+                    : "메일 발송 중 오류가 발생했습니다. 다시 시도해 주세요."
+            )
+        } else {
+            setResendSent(true)
+        }
+        setResendLoading(false)
     }
 
     return (
@@ -121,9 +182,20 @@ export default function LoginPage() {
                     </span>
                 </a>
                 <p className="mt-2 text-sm" style={{ color: "var(--toss-text-secondary)" }}>
-                    {view === "login" ? "로그인하고 쇼핑을 시작하세요" : "비밀번호를 재설정하세요"}
+                    {view === "login"  ? "로그인하고 쇼핑을 시작하세요"
+                    : view === "verify" ? "이메일 인증 후 서비스를 이용하실 수 있어요"
+                    : "비밀번호를 재설정하세요"}
                 </p>
             </div>
+
+            {/* 이메일 인증 완료 안내 배너 */}
+            {emailConfirmedToast && (
+                <div className="rounded-2xl px-4 py-3 mb-4 flex items-center gap-2.5 text-xs font-medium"
+                    style={{ backgroundColor: "#F0FFF4", border: "1px solid #86EFAC", color: "#16A34A" }}>
+                    <CheckCircle2 className="size-4 flex-shrink-0" />
+                    이메일 인증이 완료되었습니다. 아래에서 로그인해 주세요.
+                </div>
+            )}
 
             {/* 카드 */}
             <div className="bg-white rounded-3xl p-7 shadow-sm" style={{ border: "1px solid var(--toss-border)" }}>
@@ -256,7 +328,94 @@ export default function LoginPage() {
                     </>
                 )}
 
-                {/* ── 뷰 3: 메일 발송 완료 ── */}
+                {/* ── 뷰 3: 이메일 인증 유도 ── */}
+                {view === "verify" && (
+                    <div data-ui-id="page-login-verify">
+                        <button type="button" onClick={backToLogin}
+                            className="inline-flex items-center gap-1.5 text-xs font-medium mb-5 hover:opacity-70 transition-opacity"
+                            style={{ color: "var(--toss-text-tertiary)" }}>
+                            <ArrowLeft className="size-3.5" />
+                            로그인으로 돌아가기
+                        </button>
+
+                        {/* 아이콘 */}
+                        <div className="flex flex-col items-center text-center mb-6">
+                            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
+                                style={{ backgroundColor: "#FFF8E7" }}>
+                                <Mail className="size-8" style={{ color: "#FFB800" }} />
+                            </div>
+                            <h1 className="text-xl font-black mb-2"
+                                style={{ color: "var(--toss-text-primary)", letterSpacing: "-0.03em" }}>
+                                이메일 인증이 필요해요
+                            </h1>
+                            <p className="text-sm leading-relaxed" style={{ color: "var(--toss-text-secondary)" }}>
+                                <span className="font-semibold" style={{ color: "var(--toss-text-primary)" }}>
+                                    {email}
+                                </span>
+                                으로 보낸<br />
+                                인증 메일의 링크를 클릭해 주세요.
+                            </p>
+                        </div>
+
+                        {/* 안내 박스 */}
+                        <div className="rounded-2xl px-4 py-3.5 mb-4 text-xs leading-relaxed space-y-1"
+                            style={{ backgroundColor: "var(--toss-page-bg)", border: "1px solid var(--toss-border)" }}>
+                            <p style={{ color: "var(--toss-text-secondary)" }}>
+                                📬 메일이 오지 않으면 <span className="font-semibold">스팸함</span>을 확인해 주세요.
+                            </p>
+                            <p style={{ color: "var(--toss-text-tertiary)" }}>
+                                인증 메일은 발송 후 24시간 동안 유효합니다.
+                            </p>
+                        </div>
+
+                        {/* 재발송 성공 */}
+                        {resendSent && (
+                            <div className="rounded-2xl px-4 py-3 mb-3 flex items-center gap-2.5 text-xs font-medium"
+                                style={{ backgroundColor: "#F0FFF4", border: "1px solid #86EFAC", color: "#16A34A" }}>
+                                <MailCheck className="size-4 flex-shrink-0" />
+                                인증 메일을 다시 발송했습니다. 받은편지함을 확인해 주세요.
+                            </div>
+                        )}
+
+                        {/* 재발송 에러 */}
+                        {resendError && (
+                            <div className="rounded-2xl px-4 py-3 mb-3 text-xs font-medium"
+                                style={{ backgroundColor: "#FFF0F0", color: "var(--toss-red)" }}>
+                                {resendError}
+                            </div>
+                        )}
+
+                        {/* 재발송 버튼 */}
+                        <button
+                            data-ui-id="btn-verify-resend"
+                            type="button"
+                            onClick={handleResend}
+                            disabled={resendLoading || resendSent}
+                            className="w-full py-3.5 rounded-2xl text-sm font-bold transition-opacity hover:opacity-85 disabled:opacity-50 flex items-center justify-center gap-2"
+                            style={{
+                                backgroundColor: resendSent ? "var(--toss-page-bg)" : "var(--toss-blue)",
+                                color:           resendSent ? "var(--toss-text-tertiary)" : "#fff",
+                                border:          resendSent ? "1px solid var(--toss-border)" : "none",
+                            }}>
+                            {resendLoading
+                                ? <><Loader2 className="size-4 animate-spin" />발송 중...</>
+                                : resendSent
+                                ? <><CheckCircle2 className="size-4" />메일을 다시 발송했어요</>
+                                : "인증 메일 다시 받기"}
+                        </button>
+
+                        <p className="text-center mt-4 text-xs" style={{ color: "var(--toss-text-tertiary)" }}>
+                            이메일이 다른가요?{" "}
+                            <button type="button" onClick={backToLogin}
+                                className="font-semibold hover:opacity-70 transition-opacity"
+                                style={{ color: "var(--toss-blue)" }}>
+                                다시 로그인
+                            </button>
+                        </p>
+                    </div>
+                )}
+
+                {/* ── 뷰 4: 메일 발송 완료 ── */}
                 {view === "sent" && (
                     <div className="text-center py-2">
                         <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"

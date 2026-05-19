@@ -3,6 +3,8 @@ import { Badge } from "@/components/ui/badge"
 import { DsButtonSection } from "./sections/DsButtonSection"
 import { DsInputSection } from "./sections/DsInputSection"
 import { DsProductCardSection } from "./sections/DsProductCardSection"
+import { DsComboboxSection } from "./sections/DsComboboxSection"
+import { DsBottomSheetSelectSection } from "./sections/DsBottomSheetSelectSection"
 
 /* ─── Section wrapper ─────────────────────────────────────── */
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -290,6 +292,8 @@ export default function DesignSystemPage() {
         <BadgeSection />
         <DsButtonSection />
         <DsInputSection />
+        <DsComboboxSection />
+        <DsBottomSheetSelectSection />
         <DsProductCardSection />
       </div>
     </div>

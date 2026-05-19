@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { fetchMyAvailableCoupons } from "@/lib/supabase/coupons"
 import OrderForm from "./OrderForm"
 
 export default async function OrderPage() {
@@ -11,11 +12,11 @@ export default async function OrderPage() {
     if (!user) redirect("/login?next=/order")
 
     const admin = createAdminClient()
-    const { data: profile } = await admin
-        .from("profiles")
-        .select("name, phone, postal_code, address, address_detail")
-        .eq("id", user.id)
-        .single()
+    const [profileRes, coupons] = await Promise.all([
+        admin.from("customer_profiles").select("name, phone, postal_code, address, address_detail").eq("id", user.id).single(),
+        fetchMyAvailableCoupons(user.id).catch(() => []),
+    ])
+    const profile = profileRes.data
 
     return (
         <div data-ui-id="page-order" className="max-w-5xl mx-auto px-5 py-6 pb-16">
@@ -33,12 +34,13 @@ export default async function OrderPage() {
 
             <OrderForm
                 profile={{
-                    name:          profile?.name          ?? null,
-                    phone:         profile?.phone         ?? null,
-                    postalCode:    profile?.postal_code   ?? null,
-                    address:       profile?.address       ?? null,
+                    name:          profile?.name           ?? null,
+                    phone:         profile?.phone          ?? null,
+                    postalCode:    profile?.postal_code    ?? null,
+                    address:       profile?.address        ?? null,
                     addressDetail: profile?.address_detail ?? null,
                 }}
+                availableCoupons={coupons}
             />
         </div>
     )

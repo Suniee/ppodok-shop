@@ -18,13 +18,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
     const adminClient = createAdminClient()
     const [{ data: profile }, adminList, menuCfg] = await Promise.all([
-        adminClient.from("profiles").select("name, admin_role, role, status").eq("id", user.id).single(),
+        adminClient.from("admin_profiles").select("name, admin_role, status").eq("id", user.id).single(),
         fetchAdminUsers().catch(() => [] as AdminUser[]),
         fetchMenuConfig().catch(() => [] as MenuConfig[]),
     ])
 
-    // 관리자 권한이 없으면 로그인 페이지로
-    if (!profile || profile.role !== "admin" || profile.status !== "active") {
+    // admin_profiles에 없거나 비활성 상태이면 로그인 페이지로
+    if (!profile || profile.status !== "active") {
         redirect("/admin/login")
     }
 

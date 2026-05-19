@@ -1,26 +1,34 @@
 "use client"
 
-import { createContext, useContext, useReducer, useEffect, useState, useCallback } from "react"
+import { createContext, useContext, useReducer, useEffect, useState, useCallback, useRef } from "react"
 import { type Product } from "@/lib/data/products"
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser"
+import {
+    fetchCartAction,
+    upsertCartItemAction,
+    removeCartItemAction,
+    clearCartAction,
+    mergeLocalCartAction,
+} from "@/lib/supabase/cart"
 
 export type CartItem = {
-    product: Product
+    product:  Product
     quantity: number
 }
 
 type CartState = {
-    items: CartItem[]
+    items:  CartItem[]
     isOpen: boolean
 }
 
 type CartAction =
-    | { type: "ADD"; product: Product }
-    | { type: "REMOVE"; id: string }
+    | { type: "ADD";        product: Product }
+    | { type: "REMOVE";     id: string }
     | { type: "UPDATE_QTY"; id: string; qty: number }
     | { type: "CLEAR" }
     | { type: "OPEN" }
     | { type: "CLOSE" }
-    | { type: "HYDRATE"; items: CartItem[] }
+    | { type: "HYDRATE";    items: CartItem[] }
 
 function reducer(state: CartState, action: CartAction): CartState {
     switch (action.type) {
@@ -64,47 +72,134 @@ function reducer(state: CartState, action: CartAction): CartState {
 }
 
 type CartContextValue = {
-    items: CartItem[]
-    isOpen: boolean
-    totalCount: number
-    totalPrice: number
-    addItem: (product: Product) => void
-    removeItem: (id: string) => void
+    items:          CartItem[]
+    isOpen:         boolean
+    totalCount:     number
+    totalPrice:     number
+    addItem:        (product: Product) => void
+    removeItem:     (id: string) => void
     updateQuantity: (id: string, qty: number) => void
-    clearCart: () => void
-    openCart: () => void
-    closeCart: () => void
+    clearCart:      () => void
+    openCart:       () => void
+    closeCart:      () => void
 }
 
 const CartContext = createContext<CartContextValue | null>(null)
 
 const STORAGE_KEY = "cart_items"
 
-export function CartProvider({ children }: { children: React.ReactNode }) {
-    const [state, dispatch] = useReducer(reducer, { items: [], isOpen: false })
-    const [hydrated, setHydrated] = useState(false)
+function getLocalCart(): CartItem[] {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY)
+        return raw ? (JSON.parse(raw) as CartItem[]) : []
+    } catch {
+        return []
+    }
+}
 
-    // localStorage에서 복원
+export function CartProvider({ children }: { children: React.ReactNode }) {
+    const [state, dispatch]         = useReducer(reducer, { items: [], isOpen: false })
+    const [hydrated, setHydrated]   = useState(false)
+    const [isLoggedIn, setIsLoggedIn] = useState(false)
+
+    // ref로 콜백 내 최신 값에 접근 (stale closure 방지)
+    const isLoggedInRef = useRef(false)
+    const stateRef      = useRef(state)
+    useEffect(() => { stateRef.current = state }, [state])
+
     useEffect(() => {
-        try {
-            const raw = localStorage.getItem(STORAGE_KEY)
-            if (raw) dispatch({ type: "HYDRATE", items: JSON.parse(raw) })
-        } catch { /* 손상된 데이터 무시 */ }
-        setHydrated(true)
+        const supabase = createSupabaseBrowserClient()
+
+        const initCart = async () => {
+            const { data: { session } } = await supabase.auth.getSession()
+
+            if (session) {
+                isLoggedInRef.current = true
+                setIsLoggedIn(true)
+
+                // 로컬 카트가 있으면 DB에 병합 (로그인 후 리다이렉트된 첫 마운트)
+                const localItems = getLocalCart()
+                if (localItems.length > 0) {
+                    await mergeLocalCartAction(
+                        localItems.map((i) => ({ productId: i.product.id, quantity: i.quantity })),
+                    )
+                    localStorage.removeItem(STORAGE_KEY)
+                }
+
+                const items = await fetchCartAction()
+                dispatch({ type: "HYDRATE", items })
+            } else {
+                isLoggedInRef.current = false
+                setIsLoggedIn(false)
+                const localItems = getLocalCart()
+                if (localItems.length > 0) dispatch({ type: "HYDRATE", items: localItems })
+            }
+            setHydrated(true)
+        }
+
+        initCart()
+
+        // 로그인/로그아웃 이벤트 구독
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            if (event === "SIGNED_IN" && session) {
+                isLoggedInRef.current = true
+                setIsLoggedIn(true)
+
+                // 로컬 카트 병합 (onAuthStateChange로 로그인을 감지한 경우)
+                const localItems = getLocalCart()
+                if (localItems.length > 0) {
+                    await mergeLocalCartAction(
+                        localItems.map((i) => ({ productId: i.product.id, quantity: i.quantity })),
+                    )
+                    localStorage.removeItem(STORAGE_KEY)
+                }
+
+                const items = await fetchCartAction()
+                dispatch({ type: "HYDRATE", items })
+            } else if (event === "SIGNED_OUT") {
+                isLoggedInRef.current = false
+                setIsLoggedIn(false)
+                dispatch({ type: "CLEAR" })
+                localStorage.removeItem(STORAGE_KEY)
+            }
+        })
+
+        return () => subscription.unsubscribe()
     }, [])
 
-    // 변경 시 localStorage에 저장
+    // 비로그인 시에만 localStorage에 저장
     useEffect(() => {
-        if (!hydrated) return
+        if (!hydrated || isLoggedIn) return
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state.items))
-    }, [state.items, hydrated])
+    }, [state.items, hydrated, isLoggedIn])
 
-    const addItem    = useCallback((product: Product) => dispatch({ type: "ADD", product }), [])
-    const removeItem = useCallback((id: string) => dispatch({ type: "REMOVE", id }), [])
-    const updateQuantity = useCallback((id: string, qty: number) => dispatch({ type: "UPDATE_QTY", id, qty }), [])
-    const clearCart  = useCallback(() => dispatch({ type: "CLEAR" }), [])
-    const openCart   = useCallback(() => dispatch({ type: "OPEN" }), [])
-    const closeCart  = useCallback(() => dispatch({ type: "CLOSE" }), [])
+    // 장바구니 조작 — 로컬 상태 즉시 반영(optimistic) 후 DB 동기화
+    const addItem = useCallback((product: Product) => {
+        dispatch({ type: "ADD", product })
+        if (isLoggedInRef.current) {
+            const prevQty = stateRef.current.items.find((i) => i.product.id === product.id)?.quantity ?? 0
+            upsertCartItemAction(product.id, prevQty + 1)
+        }
+    }, [])
+
+    const removeItem = useCallback((id: string) => {
+        dispatch({ type: "REMOVE", id })
+        if (isLoggedInRef.current) removeCartItemAction(id)
+    }, [])
+
+    const updateQuantity = useCallback((id: string, qty: number) => {
+        dispatch({ type: "UPDATE_QTY", id, qty })
+        if (isLoggedInRef.current) upsertCartItemAction(id, qty)
+    }, [])
+
+    const clearCart = useCallback(() => {
+        dispatch({ type: "CLEAR" })
+        localStorage.removeItem(STORAGE_KEY)
+        if (isLoggedInRef.current) clearCartAction()
+    }, [])
+
+    const openCart  = useCallback(() => dispatch({ type: "OPEN" }),  [])
+    const closeCart = useCallback(() => dispatch({ type: "CLOSE" }), [])
 
     const totalCount = state.items.reduce((s, i) => s + i.quantity, 0)
     const totalPrice = state.items.reduce((s, i) => s + i.product.price * i.quantity, 0)

@@ -34,7 +34,25 @@ export async function middleware(request: NextRequest) {
     )
 
     // getUser() 호출이 세션 갱신을 트리거한다 (반드시 await해야 함)
-    await supabase.auth.getUser()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    // 프론트 보호 경로에서 정지 계정 접근 차단
+    const protectedPaths = ["/account", "/order"]
+    const isProtectedRoute = !isAdminRoute &&
+        protectedPaths.some((p) => request.nextUrl.pathname.startsWith(p))
+
+    if (isProtectedRoute && user) {
+        const { data: profile } = await supabase
+            .from("customer_profiles")
+            .select("status")
+            .eq("id", user.id)
+            .single()
+
+        if (profile?.status === "suspended") {
+            await supabase.auth.signOut()
+            return NextResponse.redirect(new URL("/login", request.url))
+        }
+    }
 
     return response
 }

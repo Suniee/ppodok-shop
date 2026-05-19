@@ -12,6 +12,7 @@ export const routes: AppRoute[] = [
     { id: "product-detail", path: "/products/:id",      title: "상품 상세",     group: "main" },
     { id: "order",          path: "/order",             title: "주문하기",      group: "main" },
     { id: "orders",         path: "/orders",            title: "주문 내역",     group: "main" },
+    { id: "coupons",        path: "/coupons",           title: "쿠폰함",        group: "main" },
     { id: "account",        path: "/account",           title: "내 계정",       group: "main" },
 
     // 인증
@@ -24,6 +25,8 @@ export const routes: AppRoute[] = [
     { id: "admin-reviews",    path: "/admin/reviews",      title: "리뷰 관리",     group: "admin" },
     { id: "admin-qna",        path: "/admin/qna",          title: "Q&A 관리",      group: "admin" },
     { id: "admin-categories", path: "/admin/categories",  title: "카테고리 관리", group: "admin" },
+    { id: "admin-coupons",           path: "/admin/coupons",           title: "쿠폰 관리",  group: "admin" },
+    { id: "admin-coupon-issuance",   path: "/admin/coupon-issuance",   title: "쿠폰 발급",  group: "admin" },
     { id: "admin-banners",    path: "/admin/banners",     title: "배너 관리",     group: "admin" },
     { id: "admin-orders",     path: "/admin/orders",      title: "주문 관리",     group: "admin" },
     { id: "admin-members",    path: "/admin/members",     title: "회원 관리",     group: "admin" },

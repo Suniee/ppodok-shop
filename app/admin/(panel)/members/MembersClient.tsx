@@ -1,10 +1,10 @@
 "use client"
 
 import { useState, useTransition, useCallback, useEffect } from "react"
-import { Users, Search, CheckCircle2, XCircle, Clock, ShoppingBag } from "lucide-react"
-import { updateMemberStatusAction, updateMemberGradeAction, fetchMembersPagedAction } from "./actions"
+import { Users, Search, CheckCircle2, XCircle, Clock, ShoppingBag, Mail, UserX, Check, Ban, Trash2 } from "lucide-react"
+import { updateMemberStatusAction, updateMemberGradeAction, fetchMembersPagedAction, approveMemberAction, rejectMemberAction, permanentDeleteWithdrawnMemberAction } from "./actions"
 import type { AdminMember, MemberStatus, MemberGrade } from "@/lib/supabase/members"
-import type { MemberCounts } from "./actions"
+import type { MemberCounts, MemberTabFilter, WithdrawnMember } from "./actions"
 import AdminPagination from "@/components/admin/AdminPagination"
 import LoadingOverlay from "@/components/admin/LoadingOverlay"
 
@@ -51,11 +51,15 @@ function formatDate(iso: string) {
 }
 
 function SummaryCard({
-    label, value, color, icon: Icon,
-}: { label: string; value: string; color: string; icon: React.ElementType }) {
+    label, value, color, icon: Icon, onClick, active,
+}: { label: string; value: string; color: string; icon: React.ElementType; onClick?: () => void; active?: boolean }) {
     return (
-        <div className="bg-white rounded-2xl px-5 py-4 flex items-center gap-4"
-            style={{ border: "1px solid var(--toss-border)" }}>
+        <button type="button" onClick={onClick}
+            className="bg-white rounded-2xl px-5 py-4 flex items-center gap-4 text-left w-full transition-all hover:shadow-sm"
+            style={{
+                border: active ? `2px solid ${color}` : "1px solid var(--toss-border)",
+                cursor: onClick ? "pointer" : "default",
+            }}>
             <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
                 style={{ backgroundColor: color + "18" }}>
                 <Icon className="size-5" style={{ color }} />
@@ -64,23 +68,23 @@ function SummaryCard({
                 <p className="text-xs font-medium" style={{ color: "var(--toss-text-secondary)" }}>{label}</p>
                 <p className="text-lg font-black mt-0.5" style={{ color: "var(--toss-text-primary)", letterSpacing: "-0.03em" }}>{value}</p>
             </div>
-        </div>
+        </button>
     )
 }
 
-type TabKey = Exclude<MemberStatus, "pending"> | "all"
-
 export default function MembersClient() {
-    const [items,    setItems]    = useState<AdminMember[]>([])
-    const [total,    setTotal]    = useState(0)
-    const [counts,   setCounts]   = useState<MemberCounts>({ all: 0, active: 0, inactive: 0, suspended: 0 })
-    const [page,     setPage]     = useState(1)
-    const [pageSize, setPageSize] = useState(20)
-    const [loading,  setLoading]  = useState(true)
+    const [items,          setItems]          = useState<AdminMember[]>([])
+    const [withdrawnItems, setWithdrawnItems] = useState<WithdrawnMember[]>([])
+    const [total,          setTotal]          = useState(0)
+    const [counts,         setCounts]         = useState<MemberCounts>({ all: 0, active: 0, inactive: 0, suspended: 0, pending: 0, withdrawn: 0 })
+    const [page,           setPage]           = useState(1)
+    const [pageSize,       setPageSize]       = useState(20)
+    const [loading,        setLoading]        = useState(true)
 
-    const [statusFilter, setStatusFilter] = useState<TabKey>("all")
-    const [search,       setSearch]       = useState("")
-    const [isPending,    startTransition] = useTransition()
+    const [statusFilter,    setStatusFilter]    = useState<MemberTabFilter>("all")
+    const [search,          setSearch]          = useState("")
+    const [isPending,       startTransition]    = useTransition()
+    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
     const defaultRange = getPresetRange("1month")
     const [inputStart,  setInputStart]  = useState(defaultRange.start)
@@ -90,10 +94,11 @@ export default function MembersClient() {
 
     const load = useCallback(async () => {
         setLoading(true)
-        const { items: rows, total: cnt, counts: c } = await fetchMembersPagedAction(
+        const { items: rows, withdrawnItems: wRows, total: cnt, counts: c } = await fetchMembersPagedAction(
             page, pageSize, statusFilter, activeDateStart, activeDateEnd, search
         )
         setItems(rows)
+        setWithdrawnItems(wRows)
         setTotal(cnt)
         setCounts(c)
         setLoading(false)
@@ -120,17 +125,36 @@ export default function MembersClient() {
     }
     const showReset = activeDateStart !== null || activeDateEnd !== null
 
-    const tabs: { key: TabKey; label: string; count: number }[] = [
-        { key: "all",       label: "전체",  count: counts.all },
-        { key: "active",    label: "정상",  count: counts.active },
-        { key: "inactive",  label: "휴면",  count: counts.inactive },
-        { key: "suspended", label: "정지",  count: counts.suspended },
+    const tabs: { key: MemberTabFilter; label: string; count: number }[] = [
+        { key: "all",       label: "전체",    count: counts.all },
+        { key: "active",    label: "정상",    count: counts.active },
+        { key: "inactive",  label: "휴면",    count: counts.inactive },
+        { key: "suspended", label: "정지",    count: counts.suspended },
+        { key: "pending",   label: "미인증",  count: counts.pending },
+        { key: "withdrawn", label: "탈퇴",    count: counts.withdrawn },
     ]
 
     const handleStatusToggle = (id: string, current: Exclude<MemberStatus, "pending">) => {
         const next: MemberStatus = current === "active" ? "suspended" : "active"
         setItems((prev) => prev.map((m) => m.id === id ? { ...m, status: next } : m))
         startTransition(async () => { await updateMemberStatusAction(id, next) })
+    }
+
+    const handleApprove = (id: string) => {
+        setItems((prev) => prev.filter((m) => m.id !== id))
+        startTransition(async () => { await approveMemberAction(id) })
+    }
+
+    const handleReject = (id: string) => {
+        setItems((prev) => prev.filter((m) => m.id !== id))
+        startTransition(async () => { await rejectMemberAction(id) })
+    }
+
+    const handlePermanentDelete = (id: string) => {
+        setWithdrawnItems((prev) => prev.filter((w) => w.id !== id))
+        setCounts((prev) => ({ ...prev, withdrawn: Math.max(0, prev.withdrawn - 1) }))
+        setConfirmDeleteId(null)
+        startTransition(async () => { await permanentDeleteWithdrawnMemberAction(id) })
     }
 
     const handleGradeChange = (id: string, grade: MemberGrade) => {
@@ -153,11 +177,13 @@ export default function MembersClient() {
             </div>
 
             {/* 요약 카드 */}
-            <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-                <SummaryCard label="전체 회원" value={`${counts.all}명`}       color="#0064FF" icon={Users} />
-                <SummaryCard label="정상"      value={`${counts.active}명`}    color="#00A878" icon={CheckCircle2} />
-                <SummaryCard label="휴면"      value={`${counts.inactive}명`}  color="#8B95A1" icon={Clock} />
-                <SummaryCard label="정지"      value={`${counts.suspended}명`} color="#FF4E4E" icon={XCircle} />
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+                <SummaryCard label="전체 회원"   value={`${counts.all}명`}       color="#0064FF" icon={Users}        active={statusFilter === "all"}       onClick={() => { setStatusFilter("all");       setPage(1) }} />
+                <SummaryCard label="정상"        value={`${counts.active}명`}    color="#00A878" icon={CheckCircle2} active={statusFilter === "active"}    onClick={() => { setStatusFilter("active");    setPage(1) }} />
+                <SummaryCard label="휴면"        value={`${counts.inactive}명`}  color="#8B95A1" icon={Clock}        active={statusFilter === "inactive"}  onClick={() => { setStatusFilter("inactive");  setPage(1) }} />
+                <SummaryCard label="정지"        value={`${counts.suspended}명`} color="#FF4E4E" icon={XCircle}      active={statusFilter === "suspended"} onClick={() => { setStatusFilter("suspended"); setPage(1) }} />
+                <SummaryCard label="이메일 미인증" value={`${counts.pending}명`}  color="#FFB800" icon={Mail}         active={statusFilter === "pending"}   onClick={() => { setStatusFilter("pending");   setPage(1) }} />
+                <SummaryCard label="탈퇴"        value={`${counts.withdrawn}명`} color="#8B95A1" icon={UserX}        active={statusFilter === "withdrawn"} onClick={() => { setStatusFilter("withdrawn"); setPage(1) }} />
             </div>
 
             {/* 테이블 카드 */}
@@ -236,12 +262,82 @@ export default function MembersClient() {
 
                 {/* 테이블 */}
                 <div className="overflow-x-auto scrollbar-hide">
-                    {items.length === 0 && !loading ? (
+                    {/* 탈퇴 회원 테이블 */}
+                    {statusFilter === "withdrawn" ? (
+                        withdrawnItems.length === 0 && !loading ? (
+                            <div className="py-16 text-center" style={{ color: "var(--toss-text-tertiary)" }}>
+                                <UserX className="size-10 mx-auto mb-3 opacity-30" />
+                                <p className="text-sm">탈퇴 회원이 없습니다</p>
+                            </div>
+                        ) : (
+                            <table className="w-full">
+                                <thead>
+                                    <tr style={{ borderBottom: "1px solid var(--toss-border)" }}>
+                                        {["이메일", "탈퇴일", "액션"].map((h) => (
+                                            <th key={h}
+                                                className="px-4 py-3 text-left text-[11px] font-semibold whitespace-nowrap"
+                                                style={{ color: "var(--toss-text-tertiary)", backgroundColor: "var(--toss-page-bg)" }}>
+                                                {h}
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {withdrawnItems.map((w, i) => (
+                                        <tr key={w.id} className="hover:bg-gray-50 transition-colors"
+                                            style={{ borderBottom: i < withdrawnItems.length - 1 ? "1px solid var(--toss-border)" : undefined }}>
+                                            <td className="px-4 py-3">
+                                                <p className="text-xs" style={{ color: "var(--toss-text-secondary)" }}>{w.email}</p>
+                                            </td>
+                                            <td className="px-4 py-3 whitespace-nowrap">
+                                                <span className="text-[11px]" style={{ color: "var(--toss-text-tertiary)" }}>
+                                                    {formatDate(w.withdrawnAt)}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                {confirmDeleteId === w.id ? (
+                                                    /* 2단계 확인: 실수 방지 */
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="text-[11px]" style={{ color: "var(--toss-text-secondary)" }}>삭제할까요?</span>
+                                                        <button
+                                                            data-ui-id="btn-withdrawn-confirm-delete"
+                                                            onClick={() => handlePermanentDelete(w.id)}
+                                                            disabled={isPending}
+                                                            className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-opacity hover:opacity-80 disabled:opacity-40 whitespace-nowrap"
+                                                            style={{ backgroundColor: "#FFF0F0", color: "#FF4E4E" }}>
+                                                            <Trash2 className="size-3" />확인
+                                                        </button>
+                                                        <button
+                                                            data-ui-id="btn-withdrawn-cancel-delete"
+                                                            onClick={() => setConfirmDeleteId(null)}
+                                                            className="text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-opacity hover:opacity-80 whitespace-nowrap"
+                                                            style={{ backgroundColor: "var(--toss-page-bg)", color: "var(--toss-text-secondary)", border: "1px solid var(--toss-border)" }}>
+                                                            취소
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        data-ui-id="btn-withdrawn-delete"
+                                                        onClick={() => setConfirmDeleteId(w.id)}
+                                                        disabled={isPending}
+                                                        className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-opacity hover:opacity-80 disabled:opacity-40 whitespace-nowrap"
+                                                        style={{ backgroundColor: "#FFF0F0", color: "#FF4E4E" }}>
+                                                        <Trash2 className="size-3" />영구삭제
+                                                    </button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )
+                    ) : items.length === 0 && !loading ? (
                         <div className="py-16 text-center" style={{ color: "var(--toss-text-tertiary)" }}>
                             <Users className="size-10 mx-auto mb-3 opacity-30" />
                             <p className="text-sm">조건에 맞는 회원이 없습니다</p>
                         </div>
                     ) : (
+                        /* 일반 + 미인증 공용 테이블 */
                         <table className="w-full">
                             <thead>
                                 <tr style={{ borderBottom: "1px solid var(--toss-border)" }}>
@@ -259,6 +355,7 @@ export default function MembersClient() {
                                     const statusMeta = STATUS_META[m.status]
                                     const StatusIcon = statusMeta.icon
                                     const gradeMeta  = GRADE_META[m.grade]
+                                    const isPendingRow = m.status === "pending"
                                     return (
                                         <tr key={m.id}
                                             className="hover:bg-gray-50 transition-colors"
@@ -282,9 +379,9 @@ export default function MembersClient() {
                                             <td className="px-4 py-3">
                                                 <select
                                                     value={m.grade}
-                                                    disabled={isPending}
+                                                    disabled={isPending || isPendingRow}
                                                     onChange={(e) => handleGradeChange(m.id, e.target.value as MemberGrade)}
-                                                    className="text-[11px] font-bold px-2 py-0.5 rounded-full outline-none cursor-pointer disabled:opacity-60"
+                                                    className="text-[11px] font-bold px-2 py-0.5 rounded-full outline-none cursor-pointer disabled:opacity-40"
                                                     style={{ backgroundColor: gradeMeta.bg, color: gradeMeta.color, border: "none" }}>
                                                     {GRADES.map((g) => <option key={g} value={g}>{g}</option>)}
                                                 </select>
@@ -296,12 +393,12 @@ export default function MembersClient() {
                                             </td>
                                             <td className="px-4 py-3 text-right whitespace-nowrap">
                                                 <span className="text-xs font-semibold" style={{ color: "var(--toss-text-primary)" }}>
-                                                    {m.orderCount.toLocaleString()}건
+                                                    {isPendingRow ? "-" : `${m.orderCount.toLocaleString()}건`}
                                                 </span>
                                             </td>
                                             <td className="px-4 py-3 text-right whitespace-nowrap">
                                                 <span className="text-xs font-bold" style={{ color: "var(--toss-text-primary)" }}>
-                                                    {m.totalSpent.toLocaleString()}원
+                                                    {isPendingRow ? "-" : `${m.totalSpent.toLocaleString()}원`}
                                                 </span>
                                             </td>
                                             <td className="px-4 py-3">
@@ -313,25 +410,48 @@ export default function MembersClient() {
                                             </td>
                                             <td className="px-4 py-3">
                                                 <div className="flex items-center gap-1.5">
-                                                    <button
-                                                        onClick={() => handleStatusToggle(m.id, m.status as Exclude<MemberStatus, "pending">)}
-                                                        disabled={isPending || m.status === "inactive"}
-                                                        className="text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-opacity hover:opacity-80 disabled:opacity-40 whitespace-nowrap"
-                                                        style={{
-                                                            backgroundColor: m.status === "active" ? "#FFF0F0" : "#E8F8F5",
-                                                            color:           m.status === "active" ? "#FF4E4E" : "#00A878",
-                                                        }}>
-                                                        {m.status === "active" ? "정지" : "해제"}
-                                                    </button>
-                                                    {m.orderCount > 0 && (
-                                                        <a
-                                                            href={`/admin/sales?search=${encodeURIComponent(m.name ?? m.email)}`}
-                                                            className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-opacity hover:opacity-80 whitespace-nowrap"
-                                                            style={{ backgroundColor: "#EBF3FF", color: "var(--toss-blue)" }}
-                                                            title="주문 조회 화면에서 해당 회원 주문 검색">
-                                                            <ShoppingBag className="size-3" />
-                                                            주문
-                                                        </a>
+                                                    {isPendingRow ? (
+                                                        /* 미인증 행 — 승인/거절 버튼 */
+                                                        <>
+                                                            <button
+                                                                onClick={() => handleApprove(m.id)}
+                                                                disabled={isPending}
+                                                                className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-opacity hover:opacity-80 disabled:opacity-40 whitespace-nowrap"
+                                                                style={{ backgroundColor: "#E8F8F5", color: "#00A878" }}>
+                                                                <Check className="size-3" />승인
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleReject(m.id)}
+                                                                disabled={isPending}
+                                                                className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-opacity hover:opacity-80 disabled:opacity-40 whitespace-nowrap"
+                                                                style={{ backgroundColor: "#FFF0F0", color: "#FF4E4E" }}>
+                                                                <Ban className="size-3" />거절
+                                                            </button>
+                                                        </>
+                                                    ) : (
+                                                        /* 일반 행 — 정지/해제 + 주문 버튼 */
+                                                        <>
+                                                            <button
+                                                                onClick={() => handleStatusToggle(m.id, m.status as Exclude<MemberStatus, "pending">)}
+                                                                disabled={isPending || m.status === "inactive"}
+                                                                className="text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-opacity hover:opacity-80 disabled:opacity-40 whitespace-nowrap"
+                                                                style={{
+                                                                    backgroundColor: m.status === "active" ? "#FFF0F0" : "#E8F8F5",
+                                                                    color:           m.status === "active" ? "#FF4E4E" : "#00A878",
+                                                                }}>
+                                                                {m.status === "active" ? "정지" : "해제"}
+                                                            </button>
+                                                            {m.orderCount > 0 && (
+                                                                <a
+                                                                    href={`/admin/sales?search=${encodeURIComponent(m.name ?? m.email)}`}
+                                                                    className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-opacity hover:opacity-80 whitespace-nowrap"
+                                                                    style={{ backgroundColor: "#EBF3FF", color: "var(--toss-blue)" }}
+                                                                    title="주문 조회 화면에서 해당 회원 주문 검색">
+                                                                    <ShoppingBag className="size-3" />
+                                                                    주문
+                                                                </a>
+                                                            )}
+                                                        </>
                                                     )}
                                                 </div>
                                             </td>

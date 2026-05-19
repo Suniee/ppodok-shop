@@ -21,9 +21,9 @@ async function getCurrentUser() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error("로그인이 필요합니다.")
 
-    // 본인 프로필 조회 (profiles_own_select RLS 통과)
+    // 본인 프로필 조회 (customer_profiles_own_select RLS 통과)
     const { data: profile } = await supabase
-        .from("profiles")
+        .from("customer_profiles")
         .select("name, email")
         .eq("id", user.id)
         .single()

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Search, ShoppingCart, Bell, ChevronDown, User, LogOut, Package } from "lucide-react"
+import { Search, ShoppingCart, Ticket, ChevronDown, User, LogOut, Package } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { type Category } from "@/lib/data/categories"
 import { fetchActiveCategories } from "@/lib/supabase/categories"
@@ -9,7 +9,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/browser"
 import { useCart } from "@/lib/store/CartContext"
 export default function Header() {
   const router = useRouter()
-  const { totalCount, openCart } = useCart()
+  const { totalCount, openCart, clearCart } = useCart()
   const [searchQuery, setSearchQuery] = useState("")
   const [catOpen, setCatOpen] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
@@ -26,7 +26,7 @@ export default function Header() {
   const fetchProfile = async (uid: string) => {
     const supabase = createSupabaseBrowserClient()
     const { data } = await supabase
-      .from("profiles")
+      .from("customer_profiles")
       .select("name, email")
       .eq("id", uid)
       .single()
@@ -68,8 +68,8 @@ export default function Header() {
     const supabase = createSupabaseBrowserClient()
     await supabase.auth.signOut()
     setUserMenuOpen(false)
-    router.push("/")
-    router.refresh()
+    clearCart()
+    router.push("/login")
   }
 
   return (
@@ -154,13 +154,14 @@ export default function Header() {
             >
               <Search className="size-5" />
             </button>
-            <button data-ui-id="btn-header-notification" className="p-2.5 rounded-xl transition-colors hover:bg-gray-50 relative" style={{ color: "var(--toss-text-secondary)" }}>
-              <Bell className="size-5" />
-              <span
-                className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full"
-                style={{ backgroundColor: "var(--toss-blue)" }}
-              />
-            </button>
+            <a
+              data-ui-id="btn-header-coupons"
+              href="/coupons"
+              className="p-2.5 rounded-xl transition-colors hover:bg-gray-50"
+              style={{ color: "var(--toss-text-secondary)" }}
+            >
+              <Ticket className="size-5" />
+            </a>
             <button
               data-ui-id="btn-header-cart"
               onClick={openCart}
@@ -226,14 +227,24 @@ export default function Header() {
                 )}
               </div>
             ) : (
-              <a
-                data-ui-id="btn-header-login"
-                href="/login"
-                className="hidden sm:flex ml-2 px-4 py-2 rounded-full text-sm font-semibold text-white transition-colors hover:opacity-90"
-                style={{ backgroundColor: "var(--toss-blue)" }}
-              >
-                로그인
-              </a>
+              <div className="hidden sm:flex items-center gap-2 ml-2">
+                <a
+                  data-ui-id="btn-header-signup"
+                  href="/signup"
+                  className="px-4 py-2 rounded-full text-sm font-semibold transition-colors hover:bg-gray-50"
+                  style={{ color: "var(--toss-text-primary)", border: "1px solid var(--toss-border)" }}
+                >
+                  회원가입
+                </a>
+                <a
+                  data-ui-id="btn-header-login"
+                  href="/login"
+                  className="px-4 py-2 rounded-full text-sm font-semibold text-white transition-colors hover:opacity-90"
+                  style={{ backgroundColor: "var(--toss-blue)" }}
+                >
+                  로그인
+                </a>
+              </div>
             )}
           </div>
         </div>

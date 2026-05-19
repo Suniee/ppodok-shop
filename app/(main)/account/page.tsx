@@ -13,7 +13,7 @@ export default async function AccountPage() {
     // 프로필 조회 (service_role 사용 — profiles RLS가 쿠키 세션 기반이라 서버에서 anon으로 읽으면 실패할 수 있음)
     const admin = createAdminClient()
     const { data: profile } = await admin
-        .from("profiles")
+        .from("customer_profiles")
         .select("email, name, phone, postal_code, address, address_detail")
         .eq("id", user.id)
         .single()
