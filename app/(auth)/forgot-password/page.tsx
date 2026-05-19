@@ -21,8 +21,9 @@ export default function ForgotPasswordPage() {
         const { error: authError } = await supabase.auth.resetPasswordForEmail(
             email.trim(),
             {
-                // 메일 링크 클릭 후 리다이렉트될 페이지
-                redirectTo: `${window.location.origin}/reset-password`,
+                // /auth/callback을 경유해야 Supabase 허용 URL 검사를 통과한다.
+                // 콜백이 코드를 교환·세션 저장 후 next 경로로 리다이렉트한다.
+                redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
             }
         )
 
