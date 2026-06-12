@@ -1,6 +1,6 @@
 import { DesignSystemShowcase } from "@/components/design-system/DesignSystemShowcase"
 
-// 디자인 시스템: admin 패널과 프론트(/design-system)가 동일 컴포넌트를 재사용한다
+// 프론트 공개 디자인 시스템 페이지. URL 직접 접근용이며 헤더 네비에는 노출하지 않는다
 export default function DesignSystemPage() {
   return <DesignSystemShowcase />
 }

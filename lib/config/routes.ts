@@ -14,6 +14,7 @@ export const routes: AppRoute[] = [
     { id: "orders",         path: "/orders",            title: "주문 내역",     group: "main" },
     { id: "coupons",        path: "/coupons",           title: "쿠폰함",        group: "main" },
     { id: "account",        path: "/account",           title: "내 계정",       group: "main" },
+    { id: "design-system",  path: "/design-system",     title: "디자인 시스템", group: "main" },
 
     // 인증
     { id: "login",          path: "/login",             title: "로그인",        group: "auth" },
